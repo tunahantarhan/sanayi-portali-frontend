@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Menu, Home, FileText, User, LogOut, X, Search, Bell } from 'lucide-react';
+import { Menu, Home, FileText, User, LogOut, X, Search, Bell, ClipboardList, Send, Truck } from 'lucide-react';
 import firmaLogo from '../assets/firma-logo.png';
 import { tenantConfig } from '../config';
 
@@ -174,6 +174,36 @@ export default function Layout() {
           >
             <FileText className="mr-3 h-5 w-5" />
             Faturalar
+          </NavLink>
+
+          <NavLink 
+            to="/panel/kavaleto" 
+            onClick={closeSidebarMobile}
+            className={({ isActive }) => 
+              `flex items-center rounded-xl px-4 py-3 font-medium transition-colors ${
+                isActive 
+                  ? 'bg-brand text-white shadow-md shadow-brand/20' 
+                  : 'text-gray-600 hover:bg-brand/5 hover:text-brand'
+              }`
+            }
+          >
+            <Truck className="mr-3 h-5 w-5" />
+            Kavaleto İşlemleri
+          </NavLink>
+
+          <NavLink 
+            to="/panel/basvurular" 
+            onClick={closeSidebarMobile}
+            className={({ isActive }) => 
+              `flex items-center rounded-xl px-4 py-3 font-medium transition-colors ${
+                isActive 
+                  ? 'bg-brand text-white shadow-md shadow-brand/20' 
+                  : 'text-gray-600 hover:bg-brand/5 hover:text-brand'
+              }`
+            }
+          >
+            <Send className="mr-3 h-5 w-5" />
+            Başvurular
           </NavLink>
         </nav>
       </aside>

@@ -2,21 +2,20 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+import Faturalar from './pages/Faturalar';
+import Basvurular from './pages/Basvurular';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Ana dizin (/) direkt Login sayfasına yönlendirir */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
-        {/* /panel ile başlayan tüm URL'ler Layout sarmalayıcısının içinde açılır */}
+        
         <Route path="/panel" element={<Layout />}>
-          {/* Outlet kısmına yerleşecek varsayılan alt sayfa Dashboard'dur */}
           <Route index element={<Dashboard />} />
-          
-          {/* TODO: İleride faturalar sayfasını buraya ekleyeceğiz: */}
-          {/* <Route path="faturalar" element={<Faturalar />} /> */}
+          <Route path="faturalar" element={<Faturalar />} />
+          <Route path="basvurular" element={<Basvurular />} />
         </Route>
       </Routes>
     </BrowserRouter>

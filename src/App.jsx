@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -9,7 +9,7 @@ import Firmam from './pages/Firmam';
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
@@ -21,7 +21,7 @@ function App() {
           <Route path="firmam" element={<Firmam />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 

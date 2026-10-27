@@ -311,9 +311,23 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Sayfa İçeriği */}
-        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 bg-background relative">
-          <Outlet /> 
+        {/* Sayfa İçeriği & Footer Alanı */}
+        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 bg-background relative flex flex-col justify-between">
+          <div className="flex-1">
+            <Outlet /> 
+          </div>
+
+          {/* KURUMSAL FOOTER */}
+          <footer className="mt-12 border-t border-gray-200/70 pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
+            <p>© {new Date().getFullYear()} {tenantConfig.fullName}. Tüm hakları saklıdır.</p>
+            <div className="flex items-center space-x-4">
+              <span className="hover:text-gray-600 cursor-pointer transition-colors">KVKK Aydınlatma Metni</span>
+              <span>•</span>
+              <span className="hover:text-gray-600 cursor-pointer transition-colors">Gizlilik Politikası</span>
+              <span>•</span>
+              <span className="rounded bg-gray-200/60 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">v1.0.0</span>
+            </div>
+          </footer>
         </div>
       </main>
     </div>

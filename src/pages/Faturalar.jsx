@@ -13,23 +13,21 @@ import {
 
 // TODO: Bu mock veri ileride Backend'den "/api/invoices" üzerinden çekilecek.
 const mockInvoices = [
-  { id: 1, no: 'ELK-2024-0871', donem: 'Eylül 2024', tur: 'Elektrik', sonOdeme: '15.10.2024', tutar: 12450.00, durum: 'Bekliyor' },
-  { id: 2, no: 'SU-2024-0872', donem: 'Eylül 2024', tur: 'Su', sonOdeme: '15.10.2024', tutar: 320.50, durum: 'Bekliyor' },
-  { id: 3, no: 'DGL-2024-0873', donem: 'Eylül 2024', tur: 'Doğalgaz', sonOdeme: '15.10.2024', tutar: 980.00, durum: 'Bekliyor' },
-  { id: 4, no: 'ELK-2024-0762', donem: 'Ağustos 2024', tur: 'Elektrik', sonOdeme: '15.09.2024', tutar: 11800.00, durum: 'Ödendi' },
-  { id: 5, no: 'SU-2024-0763', donem: 'Ağustos 2024', tur: 'Su', sonOdeme: '15.09.2024', tutar: 300.00, durum: 'Ödendi' },
-  { id: 6, no: 'ELK-2024-0649', donem: 'Temmuz 2024', tur: 'Elektrik', sonOdeme: '15.08.2024', tutar: 14200.00, durum: 'Gecikmiş' },
-  { id: 7, no: 'ELK-2024-0534', donem: 'Haziran 2024', tur: 'Elektrik', sonOdeme: '15.07.2024', tutar: 13500.00, durum: 'Ödendi' },
+  { id: 1, no: 'ELK-2024-0871', donem: 'Eylül 2024', tur: 'Elektrik & Doğalgaz', sonOdeme: '15.10.2024', tutar: 12450.00, durum: 'Bekliyor' },
+  { id: 2, no: 'SU-2024-0872', donem: 'Eylül 2024', tur: 'Su ve Diğer Giderler', sonOdeme: '15.10.2024', tutar: 320.50, durum: 'Bekliyor' },
+  { id: 3, no: 'DGL-2024-0873', donem: 'Eylül 2024', tur: 'Elektrik & Doğalgaz', sonOdeme: '15.10.2024', tutar: 980.00, durum: 'Bekliyor' },
+  { id: 4, no: 'ILV-2024-0874', donem: 'Eylül 2024', tur: 'İlave Faturalar', sonOdeme: '20.10.2024', tutar: 2150.00, durum: 'Bekliyor' },
+  { id: 5, no: 'ELK-2024-0762', donem: 'Ağustos 2024', tur: 'Elektrik & Doğalgaz', sonOdeme: '15.09.2024', tutar: 11800.00, durum: 'Ödendi' },
+  { id: 6, no: 'SU-2024-0763', donem: 'Ağustos 2024', tur: 'Su ve Diğer Giderler', sonOdeme: '15.09.2024', tutar: 300.00, durum: 'Ödendi' },
+  { id: 7, no: 'ILV-2024-0764', donem: 'Ağustos 2024', tur: 'İlave Faturalar', sonOdeme: '20.09.2024', tutar: 2150.00, durum: 'Ödendi' },
+  { id: 8, no: 'ELK-2024-0649', donem: 'Temmuz 2024', tur: 'Elektrik & Doğalgaz', sonOdeme: '15.08.2024', tutar: 14200.00, durum: 'Gecikmiş' },
 ];
 
 export default function Faturalar() {
   const [activeTab, setActiveTab] = useState('Tümü');
   const [selectedInvoices, setSelectedInvoices] = useState([]);
-  
-  // Sıralama durumu
   const [sortConfig, setSortConfig] = useState({ key: 'sonOdeme', direction: 'desc' });
 
-  // Sıralama tetikleyici fonksiyon
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -38,53 +36,43 @@ export default function Faturalar() {
     setSortConfig({ key, direction });
   };
 
-  // Tarih sıralaması için yardımcı parse fonksiyonu (GG.AA.YYYY)
   const parseDate = (dateStr) => {
     const [day, month, year] = dateStr.split('.');
     return new Date(`${year}-${month}-${day}`).getTime();
   };
 
-  // Filtreleme ve Sıralama İşlemi
   const processedInvoices = useMemo(() => {
-    // 1. Sekmeye göre filtrele
     let list = activeTab === 'Tümü' 
       ? [...mockInvoices] 
       : mockInvoices.filter(inv => inv.tur === activeTab);
 
-    // 2. Belirlenen sütuna göre sırala
     if (sortConfig.key) {
       list.sort((a, b) => {
         let aVal = a[sortConfig.key];
         let bVal = b[sortConfig.key];
 
-        // Tarih formatı sıralaması
         if (sortConfig.key === 'sonOdeme') {
           aVal = parseDate(aVal);
           bVal = parseDate(bVal);
         }
 
-        // Tutar sayısal sıralaması
         if (sortConfig.key === 'tutar') {
           return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
         }
 
-        // Metinsel sıralama
         if (typeof aVal === 'string') {
           return sortConfig.direction === 'asc' 
             ? aVal.localeCompare(bVal, 'tr') 
             : bVal.localeCompare(aVal, 'tr');
         }
 
-        return sortConfig.direction === 'asc' 
-          ? (aVal > bVal ? 1 : -1) 
-          : (aVal < bVal ? 1 : -1);
+        return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
       });
     }
 
     return list;
   }, [activeTab, sortConfig]);
 
-  // Çoklu seçim (Checkbox) işlemleri
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       const payableIds = processedInvoices
@@ -104,19 +92,16 @@ export default function Faturalar() {
     }
   };
 
-  // Seçilen faturaların toplam tutarını hesapla
   const selectedTotal = useMemo(() => {
     return mockInvoices
       .filter(inv => selectedInvoices.includes(inv.id))
       .reduce((sum, inv) => sum + inv.tutar, 0);
   }, [selectedInvoices]);
 
-  // Para birimi formatlayıcı
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
   };
 
-  // Duruma göre etiket (Badge) tasarımı
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Ödendi':
@@ -130,7 +115,6 @@ export default function Faturalar() {
     }
   };
 
-  // Sütun başlığında sıralama ikonu gösterici yardımcı
   const renderSortIcon = (columnKey) => {
     if (sortConfig.key !== columnKey) {
       return <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />;
@@ -156,16 +140,16 @@ export default function Faturalar() {
         </div>
       </div>
 
-      {/* Sekmeler (Tabs) */}
-      <div className="mb-6 flex space-x-1 rounded-xl bg-gray-100/80 p-1 w-full max-w-md">
-        {['Tümü', 'Elektrik', 'Su', 'Doğalgaz'].map((tab) => (
+      {/* 3 Ana Fatura Grubu Sekmeleri */}
+      <div className="mb-6 flex flex-wrap gap-1 rounded-xl bg-gray-100/80 p-1 w-full max-w-2xl">
+        {['Tümü', 'Elektrik & Doğalgaz', 'Su ve Diğer Giderler', 'İlave Faturalar'].map((tab) => (
           <button
             key={tab}
             onClick={() => {
               setActiveTab(tab);
               setSelectedInvoices([]);
             }}
-            className={`w-full rounded-lg py-2 text-sm font-medium transition-all ${
+            className={`flex-1 min-w-[130px] rounded-lg py-2 px-3 text-xs sm:text-sm font-medium transition-all ${
               activeTab === tab
                 ? 'bg-white text-gray-800 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
@@ -194,7 +178,6 @@ export default function Faturalar() {
                   />
                 </th>
 
-                {/* Sıralanabilir Başlıklar */}
                 <th 
                   scope="col" 
                   onClick={() => handleSort('no')} 

@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Menu, Home, FileText, User, LogOut, X, Search, Bell, ClipboardList, Send, Truck } from 'lucide-react';
+import { 
+  Menu, 
+  Home, 
+  FileText, 
+  User, 
+  LogOut, 
+  X, 
+  Search, 
+  Bell, 
+  Truck, 
+  Send, 
+  Briefcase, 
+  MessageCircle,
+  ExternalLink 
+} from 'lucide-react';
 import firmaLogo from '../assets/firma-logo.png';
 import { tenantConfig } from '../config';
 
@@ -8,12 +22,15 @@ export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  
+  // Mobil ve Masaüstü için ayrı ref tanımları
+  const desktopDropdownRef = useRef(null);
+  const mobileDropdownRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+      setIsMobile(window.innerWidth < 1024);
       if (window.innerWidth >= 1024) {
         setIsSidebarOpen(true); 
       } else {
@@ -26,9 +43,13 @@ export default function Layout() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Dropdown dışına tıklanınca kapatma kontrolü
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      const clickedDesktop = desktopDropdownRef.current && desktopDropdownRef.current.contains(event.target);
+      const clickedMobile = mobileDropdownRef.current && mobileDropdownRef.current.contains(event.target);
+
+      if (!clickedDesktop && !clickedMobile) {
         setIsProfileDropdownOpen(false);
       }
     }
@@ -36,23 +57,23 @@ export default function Layout() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, []);
 
   const closeSidebarMobile = () => {
     if (isMobile) setIsSidebarOpen(false);
   };
 
   const handleLogout = () => {
-    // TODO: Gerçek çıkış işlemleri eklenecek (token silme vb.)
+    // TODO: Gerçek çıkış işlemleri eklenecek
     navigate('/login');
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background relative">
       
       {/* MOBİL HEADER */}
       {isMobile && (
-        <header className="fixed top-0 left-0 right-0 z-20 flex h-16 items-center justify-between bg-white px-4 shadow-sm">
+        <header className="fixed top-0 left-0 right-0 z-30 flex h-16 items-center justify-between bg-white px-4 shadow-sm">
           <div className="flex items-center">
              <button 
                 onClick={() => setIsSidebarOpen(true)} 
@@ -63,7 +84,6 @@ export default function Layout() {
              <img src={firmaLogo} alt={tenantConfig.name} className="h-8 w-auto object-contain" />
           </div>
           
-          {/* Mobilde Sağ Üst İkonlar */}
           <div className="flex items-center space-x-2">
              <button className="rounded-full p-2 text-gray-500 hover:bg-gray-100">
                 <Search className="h-5 w-5" />
@@ -78,16 +98,19 @@ export default function Layout() {
             </button>
 
             {/* Profil Dropdown (Mobil) */}
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative" ref={mobileDropdownRef}>
               <button 
-                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsProfileDropdownOpen((prev) => !prev);
+                }}
                 className="flex items-center justify-center h-8 w-8 rounded-full bg-brand text-white font-bold text-sm hover:bg-brand/90 focus:outline-none"
               >
                 {tenantConfig.name.charAt(0)}
               </button>
 
               {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-gray-100 bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-gray-100 bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                   <div className="px-4 py-2 border-b">
                      <p className="text-sm font-medium text-gray-900 truncate">Firma Yetkilisi</p>
                      <p className="text-xs text-gray-500 truncate">{tenantConfig.name}</p>
@@ -205,16 +228,29 @@ export default function Layout() {
             <Send className="mr-3 h-5 w-5" />
             Başvurular
           </NavLink>
+
+          {/* Aranan Eleman / İstihdam Paneli */}
+          <a
+            href="https://ideriosb.org.tr" 
+            target="_blank" 
+            rel="noreferrer"
+            className="flex items-center justify-between rounded-xl px-4 py-3 font-medium text-gray-600 transition-colors hover:bg-gray-100"
+          >
+            <div className="flex items-center">
+              <Briefcase className="mr-3 h-5 w-5 text-gray-500" />
+              <span>Aranan Eleman</span>
+            </div>
+            <ExternalLink className="h-4 w-4 text-gray-400" />
+          </a>
         </nav>
       </aside>
 
       {/* Ana İçerik Alanı */}
       <main className="flex-1 flex flex-col overflow-hidden pt-16 lg:pt-0">
         
-        {/* ÜST BAR */}
-        <header className="hidden lg:flex h-16 shrink-0 items-center justify-between border-b bg-white px-4 md:px-8">
+        {/* ÜST BAR (Masaüstü) */}
+        <header className="hidden lg:flex relative z-30 h-16 shrink-0 items-center justify-between border-b bg-white px-4 md:px-8">
           
-          {/* Arama Kısmı */}
           <div className="flex w-full max-w-lg items-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 transition-colors focus-within:border-brand focus-within:bg-white focus-within:ring-1 focus-within:ring-brand">
             <Search className="h-5 w-5 text-gray-400" />
             <input 
@@ -226,7 +262,6 @@ export default function Layout() {
 
           <div className="flex items-center space-x-5">
             
-            {/* Bildirim Çanı */}
             <button className="relative rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
               <Bell className="h-6 w-6" />
               <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
@@ -234,11 +269,14 @@ export default function Layout() {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span>
               </span>
             </button>
-            
-            {/* Profil İkonu */}
-            <div className="relative" ref={dropdownRef}>
+
+            {/* Profil Dropdown (Masaüstü) */}
+            <div className="relative" ref={desktopDropdownRef}>
               <button 
-                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsProfileDropdownOpen((prev) => !prev);
+                }}
                 className="flex items-center space-x-2 rounded-full p-1 hover:bg-gray-100 focus:outline-none"
               >
                 <div className="h-10 w-10 rounded-full bg-brand flex items-center justify-center text-white font-bold text-lg hover:bg-brand/90 transition-colors">
@@ -247,7 +285,7 @@ export default function Layout() {
               </button>
 
               {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-gray-100 bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-gray-100 bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                   <div className="px-4 py-2 border-b">
                      <p className="text-sm font-medium text-gray-900 truncate">Firma Yetkilisi</p>
                      <p className="text-xs text-gray-500 truncate">{tenantConfig.name}</p>
@@ -274,8 +312,8 @@ export default function Layout() {
         </header>
 
         {/* Sayfa İçeriği */}
-        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 bg-background">
-          <Outlet /> {/* TODO: React Router'dan gelen alt sayfalar burada render edilecek */}
+        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 bg-background relative">
+          <Outlet /> 
         </div>
       </main>
     </div>

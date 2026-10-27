@@ -1,4 +1,4 @@
-import { Building2, ShieldCheck, FileCheck, Phone, Mail, MapPin } from 'lucide-react';
+import { Building2, ShieldCheck, FileCheck, Phone, Mail, MapPin, MessageSquare, Briefcase } from 'lucide-react';
 import { tenantConfig } from '../config';
 
 export default function Firmam() {
@@ -9,23 +9,29 @@ export default function Firmam() {
         <p className="text-sm text-gray-500 mt-1">Sicil kayıtları, teminat mektupları ve OSB ile olan yasal izinleriniz.</p>
       </div>
 
-      {/* 1. KART: TEMEL FİRMA BİLGİLERİ */}
+      {/* 1. KART: TEMEL FİRMA BİLGİLERİ & BİLDİRİM KANALLARI */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Building2 className="h-5 w-5 text-brand" /> Firma Genel Bilgileri
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <span className="text-xs text-gray-400 font-medium">Firma Ünvanı</span>
             <p className="text-sm font-semibold text-gray-800 mt-1">Örnek Deri Sanayi ve Tic. A.Ş.</p>
           </div>
           <div>
-            <span className="text-xs text-gray-400 font-medium">Vergi Numarası / Dairesi</span>
+            <span className="text-xs text-gray-400 font-medium">Vergi No / Dairesi</span>
             <p className="text-sm font-semibold text-gray-800 mt-1">4810090571 (Tuzla V.D.)</p>
           </div>
           <div>
-            <span className="text-xs text-gray-400 font-medium">Abone / Tesisat Numarası</span>
+            <span className="text-xs text-gray-400 font-medium">Abone No</span>
             <p className="text-sm font-semibold text-gray-800 mt-1">TR-IDOSB-88341</p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-400 font-medium">SMS & E-Tebligat Durumu</span>
+            <p className="text-sm font-semibold text-emerald-600 mt-1 flex items-center gap-1">
+              <MessageSquare className="h-3.5 w-3.5" /> Aktif (+90 532 *** ** 00)
+            </p>
           </div>
         </div>
       </div>
@@ -101,10 +107,10 @@ export default function Firmam() {
 
       </div>
 
-      {/* 3. KART: OSB İLETİŞİM BİLGİLERİ */}
+      {/* 3. KART: OSB İLETİŞİM, KEP & İSTİHDAM */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-bold text-gray-900 mb-4">{tenantConfig.fullName} Bölge Müdürlüğü</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
           <div className="flex items-start gap-3">
             <MapPin className="h-5 w-5 text-brand shrink-0 mt-0.5" />
             <div>
@@ -124,6 +130,13 @@ export default function Firmam() {
             <div>
               <p className="font-semibold text-gray-800">E-Posta & KEP</p>
               <p className="text-gray-500 text-xs mt-1">info@ideriosb.org.tr<br/>ideriosb@hs01.kep.tr</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Briefcase className="h-5 w-5 text-brand shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-gray-800">İstihdam / İlan</p>
+              <p className="text-gray-500 text-xs mt-1">İDOSB Kariyer Portalından personel arayışlarınızı yayınlayabilirsiniz.</p>
             </div>
           </div>
         </div>

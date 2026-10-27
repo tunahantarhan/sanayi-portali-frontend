@@ -1,16 +1,24 @@
-import { useState, useMemo } from 'react';
-import { Download, Truck, ArrowUpDown, ArrowUp, ArrowDown, FileText } from 'lucide-react';
-
-// TODO: ERP üzerinden onaylanan kavaleto dökümleri çekilecek
-const mockKavaletoData = [
-  { id: 1, sevkNo: 'KVT-2026-0041', sevkTarihi: '22.10.2026', miktarTon: 14.25, aracPlaka: '34 VT 4810', durum: 'Onaylandı' },
-  { id: 2, sevkNo: 'KVT-2026-0038', sevkTarihi: '15.10.2026', miktarTon: 22.80, aracPlaka: '34 KV 1905', durum: 'Onaylandı' },
-  { id: 3, sevkNo: 'KVT-2026-0031', sevkTarihi: '04.10.2026', miktarTon: 18.10, aracPlaka: '34 AB 7712', durum: 'Onaylandı' },
-  { id: 4, sevkNo: 'KVT-2026-0027', sevkTarihi: '28.09.2026', miktarTon: 9.60, aracPlaka: '34 DB 3301', durum: 'Onaylandı' },
-];
+import { useState, useMemo, useEffect } from 'react';
+import { Download, Truck, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { getKavaletoList } from '../services/api'; // API servisi
 
 export default function Kavaleto() {
+  const [kavaletoData, setKavaletoData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'sevkTarihi', direction: 'desc' });
+
+  // TODO: Fastify API'den kavaleto dökümlerini çeker
+  useEffect(() => {
+    getKavaletoList()
+      .then((data) => {
+        setKavaletoData(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Kavaleto verileri alınamadı:', err);
+        setLoading(false);
+      });
+  }, []);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -26,7 +34,7 @@ export default function Kavaleto() {
   };
 
   const sortedData = useMemo(() => {
-    const list = [...mockKavaletoData];
+    const list = [...kavaletoData];
     if (sortConfig.key) {
       list.sort((a, b) => {
         let aVal = a[sortConfig.key];
@@ -51,7 +59,7 @@ export default function Kavaleto() {
       });
     }
     return list;
-  }, [sortConfig]);
+  }, [kavaletoData, sortConfig]);
 
   const renderSortIcon = (columnKey) => {
     if (sortConfig.key !== columnKey) {
@@ -119,30 +127,38 @@ export default function Kavaleto() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {sortedData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    {item.sevkNo}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.sevkTarihi}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                      <Truck className="h-3.5 w-3.5 text-gray-500" />
-                      {item.aracPlaka}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900">
-                    {item.miktarTon.toFixed(2)} Ton
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button className="inline-flex items-center gap-1 text-brand hover:text-brand-dark transition-colors">
-                      <Download className="h-4 w-4" /> İndir
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-12 text-center text-sm text-gray-500">
+                    Kavaleto verileri yükleniyor...
                   </td>
                 </tr>
-              ))}
+              ) : (
+                sortedData.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                      {item.sevkNo}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.sevkTarihi}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                        <Truck className="h-3.5 w-3.5 text-gray-500" />
+                        {item.aracPlaka}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900">
+                      {item.miktarTon.toFixed(2)} Ton
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button className="inline-flex items-center gap-1 text-brand hover:text-brand-dark transition-colors">
+                        <Download className="h-4 w-4" /> İndir
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

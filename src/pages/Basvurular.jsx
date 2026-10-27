@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   FileText, 
   UploadCloud, 
@@ -14,27 +14,23 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
+import { getPreviousApplications, submitNewApplication } from '../services/api'; // API servisleri
 
-// TODO: Bu kategori listesi ileride ERP'den çekilecek
-const mockCategories = [
+// TODO: İleride istenirse ERP'den kategori endpoint'i eklenebilir (/api/categories)
+const categories = [
   { id: 1, title: 'Sayaç ve Okuma Hata Bildirimi', desc: 'Yanlış veya eksik okunduğunu düşündüğünüz sayaçlar için.' },
   { id: 2, title: 'Bölgeye Araç/Tır Giriş İzni', desc: 'Fabrikanız için gelecek olan lojistik araçların kayıtları.' },
   { id: 3, title: 'Altyapı ve Arıza Talebi', desc: 'Elektrik, su, doğalgaz altyapısındaki fiziksel arızalar.' },
   { id: 4, title: 'Diğer Dilekçe ve Talepler', desc: 'Genel istek ve şikayetleriniz için standart dilekçe.' },
 ];
 
-// TODO: Bu geçmiş başvuru verisi ERP/Backend'den çekilecek
-const mockPreviousApplications = [
-  { id: 1, takipNo: 'IDOSB-2026-9845', kategori: 'Sayaç ve Okuma Hata Bildirimi', tarih: '24.10.2026', durum: 'İnceleniyor', dosyaSayisi: 2 },
-  { id: 2, takipNo: 'IDOSB-2026-9720', kategori: 'Bölgeye Araç/Tır Giriş İzni', tarih: '18.10.2026', durum: 'Onaylandı', dosyaSayisi: 1 },
-  { id: 3, takipNo: 'IDOSB-2026-9512', kategori: 'Altyapı ve Arıza Talebi', tarih: '05.10.2026', durum: 'Tamamlandı', dosyaSayisi: 3 },
-  { id: 4, takipNo: 'IDOSB-2026-9104', kategori: 'Diğer Dilekçe ve Talepler', tarih: '12.09.2026', durum: 'Reddedildi', dosyaSayisi: 1 },
-];
-
 export default function Basvurular() {
   const [activeMainTab, setActiveMainTab] = useState('yeni');
+  const [previousApplications, setPreviousApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Wizard State'leri
   const [currentStep, setCurrentStep] = useState(1);
@@ -45,10 +41,24 @@ export default function Basvurular() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submittedTakipNo, setSubmittedTakipNo] = useState('');
   const fileInputRef = useRef(null);
 
   // Sıralama State'i
   const [sortConfig, setSortConfig] = useState({ key: 'tarih', direction: 'desc' });
+
+  // TODO: Fastify API'den geçmiş başvuruları çeker
+  useEffect(() => {
+    getPreviousApplications()
+      .then((data) => {
+        setPreviousApplications(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Başvurular yüklenemedi:', err);
+        setLoading(false);
+      });
+  }, []);
 
   const resetWizard = () => {
     setIsSuccess(false);
@@ -77,7 +87,7 @@ export default function Basvurular() {
   };
 
   const sortedApplications = useMemo(() => {
-    const list = [...mockPreviousApplications];
+    const list = [...previousApplications];
     if (sortConfig.key) {
       list.sort((a, b) => {
         let aVal = a[sortConfig.key];
@@ -94,13 +104,11 @@ export default function Basvurular() {
             : bVal.localeCompare(aVal, 'tr');
         }
 
-        return sortConfig.direction === 'asc' 
-          ? (aVal > bVal ? 1 : -1) 
-          : (aVal < bVal ? 1 : -1);
+        return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
       });
     }
     return list;
-  }, [sortConfig]);
+  }, [previousApplications, sortConfig]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -116,13 +124,18 @@ export default function Basvurular() {
     });
   };
 
-  const handleSubmit = () => {
+  // TODO: Fastify API'ye form verilerini post eder
+  const handleSubmit = async () => {
     setIsSubmitting(true);
-    // TODO: Gerçek sistemde multipart/form-data ile backend API'sine post edilecek
-    setTimeout(() => {
+    try {
+      const res = await submitNewApplication(formData);
+      setSubmittedTakipNo(res.takipNo);
       setIsSubmitting(false);
       setIsSuccess(true);
-    }, 1200);
+    } catch (error) {
+      console.error('Başvuru gönderilemedi:', error);
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -155,7 +168,7 @@ export default function Basvurular() {
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-800 mb-4">Başvuru Kategorisi Seçin</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {mockCategories.map((cat) => (
+              {categories.map((cat) => (
                 <div
                   key={cat.id}
                   onClick={() => setFormData({ ...formData, categoryId: cat.id })}
@@ -282,7 +295,7 @@ export default function Basvurular() {
           }`}
         >
           <ListFilter className="h-4 w-4" />
-          Başvuru Takip ({mockPreviousApplications.length})
+          Başvuru Takip ({previousApplications.length})
         </button>
       </div>
 
@@ -297,7 +310,9 @@ export default function Basvurular() {
              <p className="text-gray-500 mb-6">
                Dilekçeniz bölge müdürlüğümüze başarıyla iletildi.
                <br/>
-               <span className="font-semibold text-gray-800 mt-2 inline-block">Takip No: IDOSB-2026-9912</span>
+               <span className="font-semibold text-gray-800 mt-2 inline-block">
+                 Takip No: {submittedTakipNo || 'IDOSB-2026-9912'}
+               </span>
              </p>
              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                <button 
@@ -448,36 +463,43 @@ export default function Basvurular() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {sortedApplications.map((app) => (
-                  <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      {app.takipNo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {app.kategori}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {app.tarih}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(app.durum)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
-                      {app.dosyaSayisi} Belge
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="inline-flex items-center gap-1 text-brand hover:text-brand-dark transition-colors">
-                        <Download className="h-4 w-4" /> İndir
-                      </button>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="py-12 text-center text-sm text-gray-500">
+                      Başvurular yükleniyor...
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  sortedApplications.map((app) => (
+                    <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        {app.takipNo}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {app.kategori}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {app.tarih}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(app.durum)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
+                        {app.dosyaSayisi} Belge
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button className="inline-flex items-center gap-1 text-brand hover:text-brand-dark transition-colors">
+                          <Download className="h-4 w-4" /> İndir
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
-
     </div>
   );
 }

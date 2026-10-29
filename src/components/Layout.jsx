@@ -12,7 +12,7 @@ import {
   Truck, 
   Send, 
   Briefcase, 
-  MessageCircle,
+  MessageCircle, 
   ExternalLink,
   CheckCheck,
   ArrowLeft
@@ -25,15 +25,12 @@ export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
-  // Masaüstü ve mobil açılır menü state'leri
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false);
   const [isMobileNotifOpen, setIsMobileNotifOpen] = useState(false);
   
   const [notifications, setNotifications] = useState([]);
-  
-  // Mobilde akıcı arama çubuğu state'i
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const mobileSearchInputRef = useRef(null);
 
@@ -41,7 +38,6 @@ export default function Layout() {
   const desktopNotificationRef = useRef(null);
   const mobileDropdownRef = useRef(null);
   const mobileNotificationRef = useRef(null);
-  
   const mobileNotifBtnRef = useRef(null);
   const mobileProfileBtnRef = useRef(null);
 
@@ -62,30 +58,24 @@ export default function Layout() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Mobil arama açılınca input'a otomatik odaklan
   useEffect(() => {
     if (isMobileSearchOpen && mobileSearchInputRef.current) {
       setTimeout(() => mobileSearchInputRef.current.focus(), 150);
     }
   }, [isMobileSearchOpen]);
 
-  // Bildirimleri API'den çek
   useEffect(() => {
     getNotifications().then(setNotifications).catch(console.error);
   }, []);
 
-  // Dışarı tıklama kontrolü (Masaüstü ve Mobil)
   useEffect(() => {
     function handleClickOutside(event) {
-      // Masaüstü Profil
       if (desktopDropdownRef.current && !desktopDropdownRef.current.contains(event.target)) {
         setIsProfileDropdownOpen(false);
       }
-      // Masaüstü Bildirim
       if (desktopNotificationRef.current && !desktopNotificationRef.current.contains(event.target)) {
         setIsNotificationOpen(false);
       }
-      // Mobil Bildirim
       if (
         mobileNotificationRef.current && 
         !mobileNotificationRef.current.contains(event.target) &&
@@ -93,7 +83,6 @@ export default function Layout() {
       ) {
         setIsMobileNotifOpen(false);
       }
-      // Mobil Profil
       if (
         mobileDropdownRef.current && 
         !mobileDropdownRef.current.contains(event.target) &&
@@ -133,8 +122,6 @@ export default function Layout() {
       {/* MOBİL HEADER */}
       {isMobile && (
         <header className="fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between bg-white px-4 shadow-sm">
-          
-          {/* Sol: Menü Butonu & Logo */}
           <div className="flex items-center">
              <button 
                 onClick={() => setIsSidebarOpen(true)} 
@@ -145,7 +132,6 @@ export default function Layout() {
              <img src={firmaLogo} alt={tenantConfig.name} className="h-8 w-auto object-contain" />
           </div>
           
-          {/* Sağ: İkon Butonları */}
           <div className="flex items-center space-x-1.5">
              <button 
                onClick={() => {
@@ -153,7 +139,7 @@ export default function Layout() {
                  setIsMobileNotifOpen(false);
                  setIsMobileProfileOpen(false);
                }}
-               className="rounded-full p-2 text-gray-500 hover:bg-gray-100 active:scale-95 transition-all"
+               className="rounded-full p-2 text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
              >
                 <Search className="h-5 w-5" />
              </button>
@@ -166,7 +152,7 @@ export default function Layout() {
                  setIsMobileProfileOpen(false);
                  setIsMobileNotifOpen(prev => !prev);
                }}
-               className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 active:scale-95 transition-all"
+               className="relative rounded-full p-2 text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
              >
                <Bell className="h-5 w-5" />
                {unreadCount > 0 && (
@@ -185,9 +171,10 @@ export default function Layout() {
                  setIsMobileNotifOpen(false);
                  setIsMobileProfileOpen(prev => !prev);
                }}
-               className="flex items-center justify-center h-8 w-8 rounded-full bg-brand text-white font-bold text-sm hover:bg-brand/90 focus:outline-none active:scale-95 transition-transform ml-1"
+               title="Firma Profili"
+               className="flex items-center justify-center h-9 w-9 rounded-full bg-brand text-white shadow-sm ring-2 ring-brand/20 active:scale-95 transition-all ml-1"
              >
-               {tenantConfig.name.charAt(0)}
+               <User className="h-4.5 w-4.5 stroke-[2.2]" />
              </button>
           </div>
 
@@ -239,7 +226,7 @@ export default function Layout() {
                           {item.title}
                         </span>
                       </div>
-                      <span className="text-[11px] text-gray-400 shrink-0 whitespace-nowrap">{item.time}</span>
+                      <span className="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">{item.time}</span>
                     </div>
                     <p className={`text-gray-600 mt-1.5 leading-relaxed text-xs ${item.unread ? 'pl-4' : ''}`}>
                       {item.desc}
@@ -294,13 +281,13 @@ export default function Layout() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div className="flex flex-1 items-center rounded-xl bg-gray-100 px-3 py-2 border border-gray-200 focus-within:border-brand focus-within:bg-white transition-all">
-              <Search className="h-4 w-4 text-gray-400 shrink-0" />
+            <div className="flex flex-1 items-center rounded-xl bg-gray-50 px-3 py-2 border border-gray-300 focus-within:border-brand focus-within:bg-white transition-all">
+              <Search className="h-4 w-4 text-gray-500 shrink-0" />
               <input 
                 ref={mobileSearchInputRef}
                 type="text" 
                 placeholder="Fatura, duyuru veya işlem ara..." 
-                className="ml-2 w-full bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400"
+                className="ml-2 w-full bg-transparent text-sm text-gray-800 outline-none placeholder-gray-500 font-medium"
               />
             </div>
             <button 
@@ -427,12 +414,12 @@ export default function Layout() {
         {/* ÜST BAR (Masaüstü) */}
         <header className="hidden lg:flex relative z-30 h-16 shrink-0 items-center justify-between border-b bg-white px-4 md:px-8">
           
-          <div className="flex w-full max-w-lg items-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 transition-all duration-200 focus-within:border-brand focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/10">
-            <Search className="h-5 w-5 text-gray-400" />
+          <div className="flex w-full max-w-lg items-center rounded-xl border border-gray-300 bg-gray-50/90 px-4 py-2.5 transition-all duration-200 focus-within:border-brand focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/15 shadow-sm">
+            <Search className="h-4.5 w-4.5 text-gray-500 shrink-0" />
             <input 
               type="text" 
-              placeholder="Ara..." 
-              className="ml-3 w-full bg-transparent text-sm text-gray-700 placeholder-gray-500 outline-none"
+              placeholder="Fatura No, işlem veya duyuru arayın..." 
+              className="ml-3 w-full bg-transparent text-sm text-gray-800 placeholder-gray-500 font-medium outline-none"
             />
           </div>
 
@@ -445,7 +432,7 @@ export default function Layout() {
                   e.stopPropagation();
                   setIsNotificationOpen(prev => !prev);
                 }}
-                className="relative rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:scale-95 transition-all"
+                className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 active:scale-95 transition-all"
               >
                 <Bell className="h-6 w-6" />
                 {unreadCount > 0 && (
@@ -463,7 +450,7 @@ export default function Layout() {
                     : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
                 }`}
               >
-                <div className="flex items-center justify-between px-5 py-3.5 bg-gray-50/70 border-b border-gray-100">
+                <div className="flex items-center justify-between px-5 py-3.5 bg-gray-50/80 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-gray-900">Bildirimler</span>
                     {unreadCount > 0 && (
@@ -521,37 +508,38 @@ export default function Layout() {
                   e.stopPropagation();
                   setIsProfileDropdownOpen(prev => !prev);
                 }}
-                className="flex items-center space-x-2 rounded-full p-1 hover:bg-gray-100 focus:outline-none active:scale-95 transition-all"
+                title="Firma Yetkilisi Profili"
+                className="flex items-center gap-2 rounded-full p-1 hover:bg-gray-100 focus:outline-none active:scale-95 transition-all"
               >
-                <div className="h-10 w-10 rounded-full bg-brand flex items-center justify-center text-white font-bold text-lg hover:bg-brand/90 transition-colors shadow-sm">
-                  {tenantConfig.name.charAt(0)}
+                <div className="h-10 w-10 rounded-full bg-brand flex items-center justify-center text-white shadow-sm ring-2 ring-brand/15 hover:bg-brand/90 transition-colors">
+                  <User className="h-5 w-5 stroke-[2.2]" />
                 </div>
               </button>
 
               <div 
-                className={`absolute right-0 mt-3 w-48 origin-top-right rounded-xl border border-gray-100 bg-white py-1 shadow-2xl ring-1 ring-black/10 focus:outline-none z-50 transition-all duration-200 ease-out transform ${
+                className={`absolute right-0 mt-3 w-52 origin-top-right rounded-2xl border border-gray-100 bg-white py-1.5 shadow-2xl ring-1 ring-black/10 focus:outline-none z-50 transition-all duration-200 ease-out transform ${
                   isProfileDropdownOpen 
                     ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' 
                     : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
                 }`}
               >
-                <div className="px-4 py-2 border-b">
-                   <p className="text-sm font-medium text-gray-900 truncate">Firma Yetkilisi</p>
-                   <p className="text-xs text-gray-500 truncate">{tenantConfig.name}</p>
+                <div className="px-4 py-2.5 border-b border-gray-100">
+                   <p className="text-sm font-semibold text-gray-900 truncate">Firma Yetkilisi</p>
+                   <p className="text-xs text-gray-500 truncate mt-0.5">{tenantConfig.name}</p>
                 </div>
                 <NavLink 
                   to="/panel/firmam"
                   onClick={() => setIsProfileDropdownOpen(false)}
-                  className="flex px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand transition-colors"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors"
                 >
-                  <User className="mr-2 h-4 w-4" />
+                  <User className="mr-2.5 h-4 w-4" />
                   Profil
                 </NavLink>
                 <button 
                   onClick={handleLogout}
-                  className="flex w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2.5 h-4 w-4" />
                   Çıkış Yap
                 </button>
               </div>

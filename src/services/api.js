@@ -7,6 +7,18 @@ import {
   mockNotifications,
 } from './mockData';
 
+// Dinamik ERP API yapılandırması
+export const ERP_CONFIG = {
+  baseURL: import.meta.env.VITE_ERP_BASE_URL || 'http://erp.ideriosb.org.tr/api/v1/sanayici-panel',
+  apiKey: import.meta.env.VITE_ERP_API_KEY || '',
+  get headers() {
+    return {
+      Authorization: `Colab-Api-Key ${this.apiKey}`,
+      Accept: 'application/json',
+    };
+  },
+};
+
 // Ağ gecikmesini simüle etmek için yardımcı gecikme (opsiyonel 200ms)
 const simulateDelay = (data, delay = 200) => {
   return new Promise((resolve) => setTimeout(() => resolve(data), delay));

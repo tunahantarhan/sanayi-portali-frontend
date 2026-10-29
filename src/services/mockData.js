@@ -2,9 +2,9 @@
 
 export const mockDashboardData = {
   currentMonth: {
-    elektrik: { miktar: '12.450', birim: 'kWh' },
-    su: { miktar: '320', birim: 'm³' },
-    dogalgaz: { miktar: '980', birim: 'm³' },
+    elektrik: { miktar: '12.450', birim: 'kWh', aktif: true },
+    su: { miktar: null, birim: 'm³', aktif: false }, // Hizmet almayan/tüketimi olmayan fabrika senaryosu
+    dogalgaz: { miktar: '980', birim: 'kWh', aktif: true },
   },
   chart12Months: [
     { name: 'Oca', elektrik: 11000, su: 280, dogalgaz: 1200 },
@@ -24,22 +24,28 @@ export const mockDashboardData = {
     {
       id: 1,
       type: 'alert',
-      title: 'Yaklaşan Ödeme',
-      desc: 'Eylül ayı elektrik faturasının son ödeme tarihi yaklaşıyor.',
+      title: 'Yaklaşan Fatura Son Ödeme Tarihi',
+      desc: 'Eylül ayı elektrik faturasının son ödeme tarihi yaklaşmaktadır. Cezai faiz ve kesinti uygulanmaması adına ödemelerinizi vadesinde tamamlayınız.',
+      content:
+        'Bölgemiz genelinde enerji tedarik sürekliliğini korumak adına tüm abonelerimizin vadesi geçmiş elektrik faturalarını en geç 15 Ekim mesai bitimine kadar kapatmaları önemle rica olunur.',
       date: 'Yarın',
     },
     {
       id: 2,
       type: 'info',
       title: 'Tarife Güncellemesi',
-      desc: 'Ekim ayı itibarıyla su birim fiyatlarında güncelleme yapılmıştır.',
+      desc: 'Ekim ayı itibarıyla OSB yönetim kurulu kararınca su birim fiyatlarında ve atıksu bedellerinde güncelleme yapılmıştır.',
+      content:
+        'Yeni tarife detaylarına ve arıtma tesisi deşarj parametre katsayılarına resmi web sitemizden veya Bölge Müdürlüğü ilan panosundan ulaşabilirsiniz.',
       date: '2 saat önce',
     },
     {
       id: 3,
       type: 'warning',
-      title: 'Planlı Kesinti',
-      desc: 'Hafta sonu trafo bakım çalışması nedeniyle kısa süreli kesinti yaşanacaktır.',
+      title: 'Planlı Trafo Bakım ve Kesinti Bildirimi',
+      desc: 'Hafta sonu 3. Cadde trafo merkezinde yapılacak revizyon çalışması nedeniyle kısa süreli enerji dalgalanması ve kesinti yaşanacaktır.',
+      content:
+        '28 Ekim Pazar günü 09:00 - 13:00 saatleri arasında jeneratör devreye alma testleri uygulanacaktır. Hassas üretim hatlarınız için gerekli tedbirleri alınız.',
       date: '28 Ekim',
     },
   ],

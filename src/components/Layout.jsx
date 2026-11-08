@@ -1,25 +1,49 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Menu, 
-  Home, 
-  FileText, 
-  User, 
-  LogOut, 
-  X, 
-  Search, 
-  Bell, 
-  Truck, 
-  Send, 
-  Briefcase, 
-  MessageCircle, 
+import {
+  Menu,
+  Home,
+  FileText,
+  User,
+  LogOut,
+  X,
+  Search,
+  Bell,
+  Truck,
+  Send,
+  Briefcase,
+  Building2,
+  Mail,
   ExternalLink,
   CheckCheck,
-  ArrowLeft
+  ArrowLeft,
 } from 'lucide-react';
-import firmaLogo from '../assets/firma-logo.png';
 import { tenantConfig } from '../config';
+import { useAuth } from '../auth/AuthContext';
 import { getNotifications, markAllNotificationsAsRead } from '../services/api';
+import { USE_MOCK } from '../services/http';
+import { formatRelative } from '../utils/format';
+import { LoadingState } from './ui/PageState';
+
+const firmaLogo = tenantConfig.logo;
+
+// config.menu içindeki `icon` anahtarlarının karşılığı
+const MENU_ICONS = {
+  home: Home,
+  invoice: FileText,
+  truck: Truck,
+  send: Send,
+  mail: Mail,
+  building: Building2,
+  briefcase: Briefcase,
+};
+
+const navClass = ({ isActive }) =>
+  `flex items-center rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
+    isActive
+      ? 'bg-brand text-white shadow-md shadow-brand/20 translate-x-1'
+      : 'text-gray-600 hover:bg-brand/5 hover:text-brand hover:translate-x-1'
+  }`;
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,6 +66,7 @@ export default function Layout() {
   const mobileProfileBtnRef = useRef(null);
 
   const navigate = useNavigate();
+  const { firma, signOut } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -65,7 +90,9 @@ export default function Layout() {
   }, [isMobileSearchOpen]);
 
   useEffect(() => {
-    getNotifications().then(setNotifications).catch(console.error);
+    getNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]));
   }, []);
 
   useEffect(() => {
@@ -104,17 +131,18 @@ export default function Layout() {
     if (isMobile) setIsSidebarOpen(false);
   };
 
-  const handleLogout = () => {
-    navigate('/login');
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
   };
 
   const handleMarkAllRead = () => {
-    markAllNotificationsAsRead().then(() => {
-      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-    });
+    markAllNotificationsAsRead()
+      .then(() => setNotifications((prev) => prev.map((n) => ({ ...n, okundu: true }))))
+      .catch(() => {});
   };
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const unreadCount = notifications.filter((n) => !n.okundu).length;
 
   return (
     <div className="flex h-screen bg-background relative selection:bg-brand/10 selection:text-brand">
@@ -214,22 +242,22 @@ export default function Layout() {
                   <div 
                     key={item.id} 
                     className={`p-4 text-xs transition-colors hover:bg-gray-50/80 ${
-                      item.unread ? 'bg-amber-50/40' : ''
+                      !item.okundu ? 'bg-amber-50/40' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        {item.unread && (
+                        {!item.okundu && (
                           <span className="h-2 w-2 rounded-full bg-brand shrink-0" />
                         )}
-                        <span className={`font-semibold text-sm ${item.unread ? 'text-gray-900' : 'text-gray-700'}`}>
-                          {item.title}
+                        <span className={`font-semibold text-sm ${!item.okundu ? 'text-gray-900' : 'text-gray-700'}`}>
+                          {item.baslik}
                         </span>
                       </div>
-                      <span className="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">{item.time}</span>
+                      <span className="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">{formatRelative(item.zaman)}</span>
                     </div>
-                    <p className={`text-gray-600 mt-1.5 leading-relaxed text-xs ${item.unread ? 'pl-4' : ''}`}>
-                      {item.desc}
+                    <p className={`text-gray-600 mt-1.5 leading-relaxed text-xs ${!item.okundu ? 'pl-4' : ''}`}>
+                      {item.aciklama}
                     </p>
                   </div>
                 ))
@@ -247,8 +275,8 @@ export default function Layout() {
             }`}
           >
             <div className="px-4 py-2.5 border-b border-gray-100">
-               <p className="text-sm font-semibold text-gray-900 truncate">Firma Yetkilisi</p>
-               <p className="text-xs text-gray-500 truncate mt-0.5">{tenantConfig.name}</p>
+               <p className="text-sm font-semibold text-gray-900 truncate">{firma?.unvan || 'Firma Yetkilisi'}</p>
+               <p className="text-xs text-gray-500 truncate mt-0.5">VKN: {firma?.vergiNo}</p>
             </div>
             <NavLink 
               to="/panel/firmam"
@@ -332,80 +360,45 @@ export default function Layout() {
             Ana Menü
           </p>
           
-          <NavLink 
-            to="/panel" 
-            end
-            onClick={closeSidebarMobile}
-            className={({ isActive }) => 
-              `flex items-center rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
-                isActive 
-                  ? 'bg-brand text-white shadow-md shadow-brand/20 translate-x-1' 
-                  : 'text-gray-600 hover:bg-brand/5 hover:text-brand hover:translate-x-1'
-              }`
+          {tenantConfig.menu.map((item) => {
+            const Icon = MENU_ICONS[item.icon] || FileText;
+            if (item.href) {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-xl px-4 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:translate-x-1"
+                >
+                  <div className="flex items-center">
+                    <Icon className="mr-3 h-5 w-5 text-gray-500" />
+                    <span>{item.label}</span>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-gray-400" />
+                </a>
+              );
             }
-          >
-            <Home className="mr-3 h-5 w-5" />
-            Ana Sayfa
-          </NavLink>
-
-          <NavLink 
-            to="/panel/faturalar" 
-            onClick={closeSidebarMobile}
-            className={({ isActive }) => 
-              `flex items-center rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
-                isActive 
-                  ? 'bg-brand text-white shadow-md shadow-brand/20 translate-x-1' 
-                  : 'text-gray-600 hover:bg-brand/5 hover:text-brand hover:translate-x-1'
-              }`
-            }
-          >
-            <FileText className="mr-3 h-5 w-5" />
-            Faturalar
-          </NavLink>
-
-          <NavLink 
-            to="/panel/kavaleto" 
-            onClick={closeSidebarMobile}
-            className={({ isActive }) => 
-              `flex items-center rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
-                isActive 
-                  ? 'bg-brand text-white shadow-md shadow-brand/20 translate-x-1' 
-                  : 'text-gray-600 hover:bg-brand/5 hover:text-brand hover:translate-x-1'
-              }`
-            }
-          >
-            <Truck className="mr-3 h-5 w-5" />
-            Kavaleto İşlemleri
-          </NavLink>
-
-          <NavLink 
-            to="/panel/basvurular" 
-            onClick={closeSidebarMobile}
-            className={({ isActive }) => 
-              `flex items-center rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
-                isActive 
-                  ? 'bg-brand text-white shadow-md shadow-brand/20 translate-x-1' 
-                  : 'text-gray-600 hover:bg-brand/5 hover:text-brand hover:translate-x-1'
-              }`
-            }
-          >
-            <Send className="mr-3 h-5 w-5" />
-            Başvurular
-          </NavLink>
-
-          <a
-            href="https://ideriosb.org.tr" 
-            target="_blank" 
-            rel="noreferrer"
-            className="flex items-center justify-between rounded-xl px-4 py-3 font-medium text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:translate-x-1"
-          >
-            <div className="flex items-center">
-              <Briefcase className="mr-3 h-5 w-5 text-gray-500" />
-              <span>Aranan Eleman</span>
-            </div>
-            <ExternalLink className="h-4 w-4 text-gray-400" />
-          </a>
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={closeSidebarMobile}
+                className={navClass}
+              >
+                <Icon className="mr-3 h-5 w-5" />
+                {item.label}
+              </NavLink>
+            );
+          })}
         </nav>
+
+        {USE_MOCK && (
+          <div className="m-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+            <strong>Demo modu:</strong> Veriler örnektir, gerçek firma verisi değildir.
+          </div>
+        )}
       </aside>
 
       {/* Ana İçerik Alanı */}
@@ -477,22 +470,22 @@ export default function Layout() {
                       <div 
                         key={item.id} 
                         className={`p-4 text-xs transition-colors hover:bg-gray-50/90 cursor-pointer ${
-                          item.unread ? 'bg-amber-50/30' : ''
+                          !item.okundu ? 'bg-amber-50/30' : ''
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2">
-                            {item.unread && (
+                            {!item.okundu && (
                               <span className="h-2 w-2 rounded-full bg-brand shrink-0" />
                             )}
-                            <h4 className={`font-semibold ${item.unread ? 'text-gray-900' : 'text-gray-700'}`}>
-                              {item.title}
+                            <h4 className={`font-semibold ${!item.okundu ? 'text-gray-900' : 'text-gray-700'}`}>
+                              {item.baslik}
                             </h4>
                           </div>
-                          <span className="text-[11px] text-gray-400 shrink-0 whitespace-nowrap">{item.time}</span>
+                          <span className="text-[11px] text-gray-400 shrink-0 whitespace-nowrap">{formatRelative(item.zaman)}</span>
                         </div>
-                        <p className={`mt-1.5 text-xs text-gray-500 leading-relaxed ${item.unread ? 'pl-4' : ''}`}>
-                          {item.desc}
+                        <p className={`mt-1.5 text-xs text-gray-500 leading-relaxed ${!item.okundu ? 'pl-4' : ''}`}>
+                          {item.aciklama}
                         </p>
                       </div>
                     ))
@@ -524,8 +517,8 @@ export default function Layout() {
                 }`}
               >
                 <div className="px-4 py-2.5 border-b border-gray-100">
-                   <p className="text-sm font-semibold text-gray-900 truncate">Firma Yetkilisi</p>
-                   <p className="text-xs text-gray-500 truncate mt-0.5">{tenantConfig.name}</p>
+                   <p className="text-sm font-semibold text-gray-900 truncate">{firma?.unvan || 'Firma Yetkilisi'}</p>
+                   <p className="text-xs text-gray-500 truncate mt-0.5">VKN: {firma?.vergiNo}</p>
                 </div>
                 <NavLink 
                   to="/panel/firmam"
@@ -550,16 +543,26 @@ export default function Layout() {
         {/* Sayfa İçeriği & Footer Alanı */}
         <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 bg-background relative flex flex-col justify-between">
           <div className="flex-1">
-            <Outlet /> 
+            <Suspense fallback={<LoadingState />}>
+              <Outlet />
+            </Suspense>
           </div>
 
           <footer className="mt-12 border-t border-gray-200/70 pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
             <p>© {new Date().getFullYear()} {tenantConfig.fullName}. Tüm hakları saklıdır.</p>
             <div className="flex items-center space-x-4">
-              <span className="hover:text-gray-600 cursor-pointer transition-colors">KVKK Aydınlatma Metni</span>
-              <span>•</span>
-              <span className="hover:text-gray-600 cursor-pointer transition-colors">Gizlilik Politikası</span>
-              <span>•</span>
+              {tenantConfig.footerLinks.map((link) => (
+                <span key={link.label} className="flex items-center space-x-4">
+                  {link.href ? (
+                    <a href={link.href} target="_blank" rel="noreferrer" className="hover:text-gray-600 transition-colors">
+                      {link.label}
+                    </a>
+                  ) : (
+                    <span>{link.label}</span>
+                  )}
+                  <span>•</span>
+                </span>
+              ))}
               <span className="rounded bg-gray-200/60 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">v1.0.0</span>
             </div>
           </footer>

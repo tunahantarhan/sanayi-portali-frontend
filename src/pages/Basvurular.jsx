@@ -1,504 +1,703 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
-import { 
-  FileText, 
-  UploadCloud, 
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft, 
-  X, 
-  AlertCircle, 
-  Clock, 
-  XCircle, 
-  PlusCircle, 
+import { useState, useRef, useMemo } from 'react';
+import {
+  FileText,
+  UploadCloud,
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  X,
+  AlertCircle,
+  Clock,
+  PlusCircle,
   ListFilter,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Download,
-  Loader2
+  Loader2,
+  Search,
+  Building2,
+  User,
+  Star,
 } from 'lucide-react';
-import { getPreviousApplications, submitNewApplication } from '../services/api'; // API servisleri
+import { getApplicationTypes, getApplications, submitApplication, fileUrls } from '../services/api';
+import { tenantConfig } from '../config';
+import useApi from '../hooks/useApi';
+import SortableTh from '../components/ui/SortableTh';
+import FileLink from '../components/ui/FileLink';
+import { ErrorState, LoadingState } from '../components/ui/PageState';
+import { formatDate, formatFileSize, toTimestamp } from '../utils/format';
+import { sortList, nextSort } from '../utils/sort';
 
-// TODO: İleride istenirse ERP'den kategori endpoint'i eklenebilir (/api/categories)
-const categories = [
-  { id: 1, title: 'Sayaç ve Okuma Hata Bildirimi', desc: 'Yanlış veya eksik okunduğunu düşündüğünüz sayaçlar için.' },
-  { id: 2, title: 'Bölgeye Araç/Tır Giriş İzni', desc: 'Fabrikanız için gelecek olan lojistik araçların kayıtları.' },
-  { id: 3, title: 'Altyapı ve Arıza Talebi', desc: 'Elektrik, su, doğalgaz altyapısındaki fiziksel arızalar.' },
-  { id: 4, title: 'Diğer Dilekçe ve Talepler', desc: 'Genel istek ve şikayetleriniz için standart dilekçe.' },
-];
+// Dosya kuralları (backend de aynı kuralları uygular)
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILES = 10;
+const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
+
+const STATUS = {
+  islemde: {
+    label: 'İşlemde',
+    icon: Clock,
+    className: 'bg-blue-50 text-blue-700 ring-blue-600/20',
+  },
+  kapali: {
+    label: 'Kapalı',
+    icon: CheckCircle2,
+    className: 'bg-gray-100 text-gray-700 ring-gray-500/20',
+  },
+};
+
+const SORTERS = {
+  evrakNo: (a) => a.evrakNo,
+  evrakTipi: (a) => a.evrakTipi,
+  tarih: (a) => toTimestamp(a.tarih),
+  durum: (a) => a.durum,
+  acan: (a) => a.acan,
+};
+
+const EMPTY_FORM = { turId: null, konu: '', detay: '', files: [] };
+const STEPS = ['Başvuru Türü', 'Detaylar', 'Evrak & Onay'];
+
+function StatusBadge({ status }) {
+  const s = STATUS[status];
+  if (!s) return <span className='text-sm text-gray-500'>{status}</span>;
+  const Icon = s.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${s.className}`}
+    >
+      <Icon className='h-3 w-3' /> {s.label}
+    </span>
+  );
+}
+
+function TypeOption({ type, selected, onSelect }) {
+  return (
+    <button
+      type='button'
+      onClick={() => onSelect(type.id)}
+      className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+        selected ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand/30 hover:bg-gray-50'
+      }`}
+    >
+      <div className='flex items-center gap-3'>
+        <div
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+            selected ? 'border-brand' : 'border-gray-300'
+          }`}
+        >
+          {selected && <div className='h-2.5 w-2.5 rounded-full bg-brand' />}
+        </div>
+        <h4 className='font-semibold text-gray-800'>{type.ad}</h4>
+      </div>
+      {type.aciklama && <p className='mt-2 pl-8 text-sm text-gray-500'>{type.aciklama}</p>}
+    </button>
+  );
+}
+
+function FileList({ files, applicationId }) {
+  if (!files || files.length === 0) return <span className='text-xs text-gray-400'>—</span>;
+  return (
+    <div className='flex flex-col items-start gap-1'>
+      {files.map((f) => (
+        <FileLink
+          key={f.id}
+          url={fileUrls.applicationFile(applicationId, f.id)}
+          label={f.ad}
+          fileName={f.ad}
+          className='max-w-[180px] text-xs'
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function Basvurular() {
-  const [activeMainTab, setActiveMainTab] = useState('yeni');
-  const [previousApplications, setPreviousApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const types = useApi(getApplicationTypes);
+  const applications = useApi(getApplications);
 
-  // Wizard State'leri
+  const [activeMainTab, setActiveMainTab] = useState('yeni');
+
+  // Sihirbaz
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    categoryId: null,
-    details: '',
-    files: []
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [showAllTypes, setShowAllTypes] = useState(false);
+  const [typeQuery, setTypeQuery] = useState('');
+  const [fileErrors, setFileErrors] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [submittedTakipNo, setSubmittedTakipNo] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [submittedEvrakNo, setSubmittedEvrakNo] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Sıralama State'i
+  // Takip
   const [sortConfig, setSortConfig] = useState({ key: 'tarih', direction: 'desc' });
+  const [statusFilter, setStatusFilter] = useState('tumu');
 
-  // TODO: Fastify API'den geçmiş başvuruları çeker
-  useEffect(() => {
-    getPreviousApplications()
-      .then((data) => {
-        setPreviousApplications(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Başvurular yüklenemedi:', err);
-        setLoading(false);
-      });
-  }, []);
+  const typeList = useMemo(() => types.data || [], [types.data]);
+  const { popularTypes, otherTypes } = useMemo(() => {
+    const flagged = typeList.filter((t) => t.sik);
+    const popular = (flagged.length ? flagged : typeList).slice(
+      0,
+      tenantConfig.popularApplicationTypeCount
+    );
+    const popularIds = new Set(popular.map((t) => t.id));
+    return { popularTypes: popular, otherTypes: typeList.filter((t) => !popularIds.has(t.id)) };
+  }, [typeList]);
+
+  const filteredOtherTypes = useMemo(() => {
+    const q = typeQuery.trim().toLocaleLowerCase('tr');
+    if (!q) return otherTypes;
+    return otherTypes.filter(
+      (t) =>
+        t.ad.toLocaleLowerCase('tr').includes(q) ||
+        (t.aciklama || '').toLocaleLowerCase('tr').includes(q)
+    );
+  }, [otherTypes, typeQuery]);
+
+  const selectedType = typeList.find((t) => t.id === formData.turId);
+  const selectedIsOther = otherTypes.some((t) => t.id === formData.turId);
+
+  const appList = useMemo(() => applications.data || [], [applications.data]);
+  const visibleApplications = useMemo(() => {
+    const filtered =
+      statusFilter === 'tumu' ? appList : appList.filter((a) => a.durum === statusFilter);
+    return sortList(filtered, SORTERS, sortConfig);
+  }, [appList, statusFilter, sortConfig]);
+
+  const counts = useMemo(
+    () => ({
+      tumu: appList.length,
+      islemde: appList.filter((a) => a.durum === 'islemde').length,
+      kapali: appList.filter((a) => a.durum === 'kapali').length,
+    }),
+    [appList]
+  );
 
   const resetWizard = () => {
-    setIsSuccess(false);
+    setSubmittedEvrakNo(null);
     setCurrentStep(1);
-    setFormData({ categoryId: null, details: '', files: [] });
+    setFormData(EMPTY_FORM);
+    setFileErrors([]);
+    setSubmitError('');
+    setTypeQuery('');
+    setShowAllTypes(false);
   };
 
   const handleTabSwitch = (targetTab) => {
-    if (targetTab === 'yeni') {
-      resetWizard();
-    }
+    if (targetTab === 'yeni' && submittedEvrakNo) resetWizard();
     setActiveMainTab(targetTab);
   };
 
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+  const addFiles = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    const errors = [];
+    const accepted = [];
+    incoming.forEach((file) => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        errors.push(`${file.name}: Yalnızca PDF, JPEG ve PNG dosyaları yüklenebilir.`);
+      } else if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name}: Dosya boyutu 5 MB'ı aşamaz.`);
+      } else if (formData.files.some((f) => f.name === file.name && f.size === file.size)) {
+        errors.push(`${file.name}: Bu dosya zaten eklendi.`);
+      } else {
+        accepted.push(file);
+      }
+    });
+    const room = MAX_FILES - formData.files.length;
+    if (accepted.length > room) {
+      errors.push(`En fazla ${MAX_FILES} dosya yüklenebilir.`);
+      accepted.splice(room);
     }
-    setSortConfig({ key, direction });
-  };
-
-  const parseDate = (dateStr) => {
-    const [day, month, year] = dateStr.split('.');
-    return new Date(`${year}-${month}-${day}`).getTime();
-  };
-
-  const sortedApplications = useMemo(() => {
-    const list = [...previousApplications];
-    if (sortConfig.key) {
-      list.sort((a, b) => {
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        if (sortConfig.key === 'tarih') {
-          aVal = parseDate(aVal);
-          bVal = parseDate(bVal);
-        }
-
-        if (typeof aVal === 'string') {
-          return sortConfig.direction === 'asc' 
-            ? aVal.localeCompare(bVal, 'tr') 
-            : bVal.localeCompare(aVal, 'tr');
-        }
-
-        return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-      });
-    }
-    return list;
-  }, [previousApplications, sortConfig]);
-
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files);
-      setFormData({ ...formData, files: [...formData.files, ...newFiles] });
-    }
+    setFileErrors(errors);
+    if (accepted.length) setFormData((prev) => ({ ...prev, files: [...prev.files, ...accepted] }));
   };
 
   const removeFile = (indexToRemove) => {
-    setFormData({
-      ...formData,
-      files: formData.files.filter((_, index) => index !== indexToRemove)
-    });
+    setFormData((prev) => ({ ...prev, files: prev.files.filter((_, i) => i !== indexToRemove) }));
   };
 
-  // TODO: Fastify API'ye form verilerini post eder
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setSubmitError('');
     try {
-      const res = await submitNewApplication(formData);
-      setSubmittedTakipNo(res.takipNo);
-      setIsSubmitting(false);
-      setIsSuccess(true);
+      const res = await submitApplication({
+        turId: formData.turId,
+        konu: formData.konu.trim(),
+        detay: formData.detay.trim(),
+        files: formData.files,
+      });
+      setSubmittedEvrakNo(res.evrakNo ?? res.id);
+      applications.reload();
     } catch (error) {
-      console.error('Başvuru gönderilemedi:', error);
+      setSubmitError(error.message);
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Onaylandı':
-      case 'Tamamlandı':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20"><CheckCircle2 className="h-3 w-3" /> {status}</span>;
-      case 'İnceleniyor':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20"><Clock className="h-3 w-3" /> İnceleniyor</span>;
-      case 'Reddedildi':
-        return <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20"><XCircle className="h-3 w-3" /> Reddedildi</span>;
-      default:
-        return <span>{status}</span>;
-    }
-  };
-
-  const renderSortIcon = (columnKey) => {
-    if (sortConfig.key !== columnKey) {
-      return <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />;
-    }
-    return sortConfig.direction === 'asc' 
-      ? <ArrowUp className="h-3.5 w-3.5 text-brand" /> 
-      : <ArrowDown className="h-3.5 w-3.5 text-brand" />;
-  };
+  const canProceed =
+    (currentStep === 1 && formData.turId) ||
+    (currentStep === 2 && formData.konu.trim().length >= 3 && formData.detay.trim().length >= 10);
 
   const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Başvuru Kategorisi Seçin</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  onClick={() => setFormData({ ...formData, categoryId: cat.id })}
-                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
-                    formData.categoryId === cat.id
-                      ? 'border-brand bg-brand/5'
-                      : 'border-gray-200 hover:border-brand/30 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                      formData.categoryId === cat.id ? 'border-brand' : 'border-gray-300'
-                    }`}>
-                       {formData.categoryId === cat.id && <div className="h-2.5 w-2.5 rounded-full bg-brand" />}
-                    </div>
-                    <h4 className="font-semibold text-gray-800">{cat.title}</h4>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500 pl-8">{cat.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Talep Detayları</h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dilekçe / Başvuru Açıklaması
-              </label>
-              <textarea
-                rows={6}
-                value={formData.details}
-                onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                placeholder="Talebinizi buraya detaylı olarak yazabilirsiniz..."
-                className="block w-full rounded-xl border border-gray-300 bg-gray-50 p-4 text-gray-900 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20 resize-none"
+    if (currentStep === 1) {
+      if (types.loading) return <LoadingState text='Başvuru türleri yükleniyor...' className='h-64' />;
+      if (types.error) return <ErrorState error={types.error} onRetry={types.reload} />;
+      return (
+        <div className='space-y-4'>
+          <h3 className='mb-2 text-lg font-medium text-gray-800'>Başvuru Türünü Seçin</h3>
+          <p className='flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400'>
+            <Star className='h-3.5 w-3.5' /> En çok kullanılanlar
+          </p>
+          <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+            {popularTypes.map((type) => (
+              <TypeOption
+                key={type.id}
+                type={type}
+                selected={formData.turId === type.id}
+                onSelect={(id) => setFormData({ ...formData, turId: id })}
               />
-            </div>
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200/50">
-               <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-               <p>Gerekli durumlarda ıslak imzalı dilekçenizi sonraki adımda dosya eki olarak yükleyebilirsiniz.</p>
-            </div>
+            ))}
           </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-4">
-             <h3 className="text-lg font-medium text-gray-800 mb-4">Evrak Yükleme (PDF, JPEG, PNG)</h3>
-             
-             <div 
-               onClick={() => fileInputRef.current?.click()}
-               className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 py-12 transition-colors hover:border-brand hover:bg-brand/5"
-             >
-                <UploadCloud className="h-10 w-10 text-gray-400 mb-3" />
-                <p className="text-sm font-medium text-gray-700">Evrak yüklemek için tıklayın veya sürükleyin</p>
-                <p className="text-xs text-gray-500 mt-1">Desteklenen: PDF, JPEG, PNG (Maks 5MB)</p>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
-                  multiple 
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-             </div>
 
-             {formData.files.length > 0 && (
-               <div className="mt-4 space-y-2">
-                 <p className="text-sm font-medium text-gray-700">Eklenen Evraklar:</p>
-                 {formData.files.map((file, index) => (
-                   <div key={index} className="flex items-center justify-between rounded-lg border border-gray-200 p-3 bg-white">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700 truncate max-w-xs">{file.name}</span>
-                        <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                      </div>
-                      <button 
-                        onClick={() => removeFile(index)}
-                        className="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-        );
-      default:
-        return null;
+          {otherTypes.length > 0 && (
+            <div className='rounded-xl border border-gray-200'>
+              <button
+                type='button'
+                onClick={() => setShowAllTypes((v) => !v)}
+                aria-expanded={showAllTypes || selectedIsOther}
+                className='flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50'
+              >
+                <span>
+                  Diğer başvuru türleri ({otherTypes.length})
+                  {selectedIsOther && !showAllTypes && (
+                    <span className='ml-2 font-normal text-brand'>· {selectedType?.ad}</span>
+                  )}
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${showAllTypes ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {showAllTypes && (
+                <div className='space-y-3 border-t border-gray-100 p-4'>
+                  <div className='flex items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 focus-within:border-brand focus-within:bg-white'>
+                    <Search className='h-4 w-4 shrink-0 text-gray-400' />
+                    <input
+                      type='text'
+                      value={typeQuery}
+                      onChange={(e) => setTypeQuery(e.target.value)}
+                      placeholder='Başvuru türü ara...'
+                      className='ml-2 w-full bg-transparent text-sm outline-none'
+                    />
+                  </div>
+                  <div className='grid max-h-80 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2'>
+                    {filteredOtherTypes.length === 0 ? (
+                      <p className='py-4 text-sm text-gray-500'>Sonuç bulunamadı.</p>
+                    ) : (
+                      filteredOtherTypes.map((type) => (
+                        <TypeOption
+                          key={type.id}
+                          type={type}
+                          selected={formData.turId === type.id}
+                          onSelect={(id) => setFormData({ ...formData, turId: id })}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
     }
+
+    if (currentStep === 2) {
+      return (
+        <div className='space-y-4'>
+          <h3 className='mb-4 text-lg font-medium text-gray-800'>Talep Detayları</h3>
+          <div className='rounded-lg bg-gray-50 px-4 py-2 text-sm text-gray-600'>
+            Başvuru türü: <strong className='text-gray-800'>{selectedType?.ad}</strong>
+          </div>
+          <div>
+            <label htmlFor='konu' className='mb-2 block text-sm font-medium text-gray-700'>
+              Konu
+            </label>
+            <input
+              id='konu'
+              type='text'
+              maxLength={200}
+              value={formData.konu}
+              onChange={(e) => setFormData({ ...formData, konu: e.target.value })}
+              placeholder='Başvurunuzu kısaca özetleyin'
+              className='block w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-gray-900 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20'
+            />
+          </div>
+          <div>
+            <label htmlFor='detay' className='mb-2 block text-sm font-medium text-gray-700'>
+              Açıklama
+            </label>
+            <textarea
+              id='detay'
+              rows={6}
+              maxLength={4000}
+              value={formData.detay}
+              onChange={(e) => setFormData({ ...formData, detay: e.target.value })}
+              placeholder='Talebinizi buraya ayrıntılı olarak yazabilirsiniz...'
+              className='block w-full resize-none rounded-xl border border-gray-300 bg-gray-50 p-4 text-gray-900 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20'
+            />
+            <p className='mt-1 text-right text-xs text-gray-400'>{formData.detay.length} / 4000</p>
+          </div>
+          <div className='flex items-center gap-2 rounded-lg border border-amber-200/50 bg-amber-50 p-3 text-sm text-amber-700'>
+            <AlertCircle className='h-4 w-4 shrink-0 text-amber-600' />
+            <p>İmzalı dilekçenizi sonraki adımda dosya olarak yükleyebilirsiniz.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className='space-y-4'>
+        <h3 className='mb-4 text-lg font-medium text-gray-800'>Evrak Yükleme (PDF, JPEG, PNG)</h3>
+
+        <div
+          role='button'
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            addFiles(e.dataTransfer.files);
+          }}
+          className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed py-12 transition-colors ${
+            isDragging
+              ? 'border-brand bg-brand/5'
+              : 'border-gray-300 bg-gray-50 hover:border-brand hover:bg-brand/5'
+          }`}
+        >
+          <UploadCloud className='mb-3 h-10 w-10 text-gray-400' />
+          <p className='text-sm font-medium text-gray-700'>
+            Evrak yüklemek için tıklayın veya sürükleyin
+          </p>
+          <p className='mt-1 text-xs text-gray-500'>
+            PDF, JPEG, PNG · Dosya başına en fazla 5 MB · En fazla {MAX_FILES} dosya
+          </p>
+          <input
+            type='file'
+            ref={fileInputRef}
+            onChange={(e) => {
+              addFiles(e.target.files);
+              e.target.value = '';
+            }}
+            className='hidden'
+            multiple
+            accept='.pdf,.jpg,.jpeg,.png'
+          />
+        </div>
+
+        {fileErrors.length > 0 && (
+          <ul className='space-y-1 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700'>
+            {fileErrors.map((err) => (
+              <li key={err}>{err}</li>
+            ))}
+          </ul>
+        )}
+
+        {formData.files.length > 0 && (
+          <div className='mt-4 space-y-2'>
+            <p className='text-sm font-medium text-gray-700'>Eklenen Evraklar:</p>
+            {formData.files.map((file, index) => (
+              <div
+                key={`${file.name}-${file.size}`}
+                className='flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3'
+              >
+                <div className='flex min-w-0 items-center gap-3'>
+                  <FileText className='h-5 w-5 shrink-0 text-gray-400' />
+                  <span className='truncate text-sm font-medium text-gray-700'>{file.name}</span>
+                  <span className='shrink-0 text-xs text-gray-500'>({formatFileSize(file.size)})</span>
+                </div>
+                <button
+                  onClick={() => removeFile(index)}
+                  aria-label={`${file.name} dosyasını kaldır`}
+                  className='rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-500'
+                >
+                  <X className='h-4 w-4' />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className='rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm'>
+          <p className='mb-2 font-semibold text-gray-800'>Özet</p>
+          <dl className='grid grid-cols-[110px_1fr] gap-y-1 text-xs'>
+            <dt className='text-gray-500'>Başvuru türü</dt>
+            <dd className='text-gray-800'>{selectedType?.ad}</dd>
+            <dt className='text-gray-500'>Konu</dt>
+            <dd className='text-gray-800'>{formData.konu}</dd>
+            <dt className='text-gray-500'>Ek sayısı</dt>
+            <dd className='text-gray-800'>{formData.files.length}</dd>
+          </dl>
+        </div>
+
+        {submitError && (
+          <div className='flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700'>
+            <AlertCircle className='mt-0.5 h-4 w-4 shrink-0' />
+            <span>{submitError}</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Başvurular ve Dilekçeler</h1>
-          <p className="text-sm text-gray-500 mt-1">Bölge müdürlüğüne yeni talep iletin veya mevcut başvurularınızı takip edin.</p>
-        </div>
+    <div className='mx-auto max-w-7xl'>
+      <div className='mb-6'>
+        <h1 className='text-2xl font-bold text-gray-800'>OSB Başvuru</h1>
+        <p className='mt-1 text-sm text-gray-500'>
+          Bölge müdürlüğüne yeni başvuru iletin veya başvurularınızı takip edin.
+        </p>
       </div>
 
-      {/* Ana Sekmeler */}
-      <div className="mb-8 flex space-x-2 rounded-xl bg-gray-100/80 p-1 w-full max-w-md">
+      <div className='mb-8 flex w-full max-w-md space-x-2 rounded-xl bg-gray-100/80 p-1'>
         <button
           onClick={() => handleTabSwitch('yeni')}
-          className={`flex items-center justify-center gap-2 w-full rounded-lg py-2.5 text-sm font-medium transition-all ${
-            activeMainTab === 'yeni'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+          className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
+            activeMainTab === 'yeni' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <PlusCircle className="h-4 w-4" />
+          <PlusCircle className='h-4 w-4' />
           Yeni Başvuru
         </button>
-
         <button
-          onClick={() => handleTabSwitch('gecmis')}
-          className={`flex items-center justify-center gap-2 w-full rounded-lg py-2.5 text-sm font-medium transition-all ${
-            activeMainTab === 'gecmis'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+          onClick={() => handleTabSwitch('takip')}
+          className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
+            activeMainTab === 'takip' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <ListFilter className="h-4 w-4" />
-          Başvuru Takip ({previousApplications.length})
+          <ListFilter className='h-4 w-4' />
+          Başvuru Takip {applications.data && `(${appList.length})`}
         </button>
       </div>
 
-      {/* 1. SEKME: YENİ BAŞVURU (WIZARD) */}
-      {activeMainTab === 'yeni' && (
-        isSuccess ? (
-          <div className="mx-auto max-w-2xl text-center py-12 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-6">
-                <CheckCircle2 className="h-10 w-10 text-green-600" />
-             </div>
-             <h2 className="text-2xl font-bold text-gray-800 mb-2">Başvurunuz Alındı!</h2>
-             <p className="text-gray-500 mb-6">
-               Dilekçeniz bölge müdürlüğümüze başarıyla iletildi.
-               <br/>
-               <span className="font-semibold text-gray-800 mt-2 inline-block">
-                 Takip No: {submittedTakipNo || 'IDOSB-2026-9912'}
-               </span>
-             </p>
-             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-               <button 
-                 onClick={resetWizard}
-                 className="w-full sm:w-auto rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-               >
-                 Yeni Başvuru Yap
-               </button>
-               <button 
-                 onClick={() => {
-                   resetWizard();
-                   setActiveMainTab('gecmis');
-                 }}
-                 className="w-full sm:w-auto rounded-xl bg-brand px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-dark"
-               >
-                 Başvurularımı Gör
-               </button>
-             </div>
+      {/* YENİ BAŞVURU */}
+      {activeMainTab === 'yeni' &&
+        (submittedEvrakNo ? (
+          <div className='mx-auto max-w-2xl rounded-2xl border border-gray-200 bg-white p-8 py-12 text-center shadow-sm'>
+            <div className='mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100'>
+              <CheckCircle2 className='h-10 w-10 text-green-600' />
+            </div>
+            <h2 className='mb-2 text-2xl font-bold text-gray-800'>Başvurunuz Alındı</h2>
+            <p className='mb-6 text-gray-500'>
+              Başvurunuz bölge müdürlüğümüze iletildi.
+              <br />
+              <span className='mt-3 inline-block rounded-lg bg-gray-100 px-4 py-2 font-semibold text-gray-800'>
+                Evrak No: {submittedEvrakNo}
+              </span>
+            </p>
+            <div className='flex flex-col items-center justify-center gap-3 sm:flex-row'>
+              <button
+                onClick={resetWizard}
+                className='w-full rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:w-auto'
+              >
+                Yeni Başvuru Yap
+              </button>
+              <button
+                onClick={() => {
+                  resetWizard();
+                  setActiveMainTab('takip');
+                }}
+                className='w-full rounded-xl bg-brand px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-dark sm:w-auto'
+              >
+                Başvurularımı Gör
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-8">
-              <div className="flex items-center justify-between relative">
-                <div className="absolute left-0 top-1/2 -z-10 h-0.5 w-full -translate-y-1/2 bg-gray-200"></div>
-                <div 
-                   className="absolute left-0 top-1/2 -z-10 h-0.5 -translate-y-1/2 bg-brand transition-all duration-500"
-                   style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
-                ></div>
-                
-                {[1, 2, 3].map((step) => (
-                  <div 
-                    key={step}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold border-2 transition-colors ${
-                      currentStep === step 
-                        ? 'border-brand bg-white text-brand'
-                        : currentStep > step 
-                          ? 'border-brand bg-brand text-white' 
-                          : 'border-gray-300 bg-white text-gray-400'
-                    }`}
-                  >
-                    {currentStep > step ? <CheckCircle2 className="h-4 w-4" /> : step}
-                  </div>
+          <div className='mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8'>
+            <div className='mb-8'>
+              <div className='relative flex items-center justify-between'>
+                <div className='absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-gray-200' />
+                <div
+                  className='absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-brand transition-all duration-500'
+                  style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
+                />
+                {STEPS.map((_, i) => {
+                  const step = i + 1;
+                  return (
+                    <div
+                      key={step}
+                      className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors ${
+                        currentStep === step
+                          ? 'border-brand bg-white text-brand'
+                          : currentStep > step
+                            ? 'border-brand bg-brand text-white'
+                            : 'border-gray-300 bg-white text-gray-400'
+                      }`}
+                    >
+                      {currentStep > step ? <CheckCircle2 className='h-4 w-4' /> : step}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className='mt-2 flex justify-between px-1 text-xs font-medium text-gray-500'>
+                {STEPS.map((label) => (
+                  <span key={label}>{label}</span>
                 ))}
               </div>
-              <div className="flex justify-between mt-2 text-xs font-medium text-gray-500 px-1">
-                 <span>Kategori</span>
-                 <span>Detaylar</span>
-                 <span>Evrak & Onay</span>
-              </div>
             </div>
 
-            <div className="min-h-[280px]">
-              {renderStep()}
-            </div>
+            <div className='min-h-[280px]'>{renderStep()}</div>
 
-            <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-6">
-               <button
-                 onClick={() => setCurrentStep(currentStep - 1)}
-                 disabled={currentStep === 1 || isSubmitting}
-                 className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-0"
-               >
-                  <ChevronLeft className="h-4 w-4" /> Geri
-               </button>
+            <div className='mt-8 flex items-center justify-between border-t border-gray-100 pt-6'>
+              <button
+                onClick={() => setCurrentStep(currentStep - 1)}
+                disabled={currentStep === 1 || isSubmitting}
+                className='flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-0'
+              >
+                <ChevronLeft className='h-4 w-4' /> Geri
+              </button>
 
-               {currentStep < 3 ? (
-                 <button
-                   onClick={() => setCurrentStep(currentStep + 1)}
-                   disabled={
-                     (currentStep === 1 && !formData.categoryId) || 
-                     (currentStep === 2 && formData.details.length < 10)
-                   }
-                   className="flex items-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-                 >
-                    İleri <ChevronRight className="h-4 w-4" />
-                 </button>
-               ) : (
-                 <button
-                   onClick={handleSubmit}
-                   disabled={isSubmitting}
-                   className="flex items-center gap-2 rounded-xl bg-brand px-8 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70 shadow-md shadow-brand/20"
-                 >
-                    {isSubmitting ? 'Gönderiliyor...' : 'Başvuruyu Tamamla'}
-                 </button>
-               )}
+              {currentStep < STEPS.length ? (
+                <button
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  disabled={!canProceed}
+                  className='flex items-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  İleri <ChevronRight className='h-4 w-4' />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || formData.files.length === 0}
+                  title={formData.files.length === 0 ? 'En az bir evrak yükleyiniz' : undefined}
+                  className='flex items-center gap-2 rounded-xl bg-brand px-8 py-2.5 text-sm font-medium text-white shadow-md shadow-brand/20 transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  {isSubmitting && <Loader2 className='h-4 w-4 animate-spin' />}
+                  {isSubmitting ? 'Gönderiliyor...' : 'Başvuruyu Tamamla'}
+                </button>
+              )}
             </div>
           </div>
-        )
-      )}
+        ))}
 
-      {/* 2. SEKME: BAŞVURU TAKİP */}
-      {activeMainTab === 'gecmis' && (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50/50">
-                <tr>
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('takipNo')} 
-                    className="group px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      Takip No
-                      {renderSortIcon('takipNo')}
-                    </div>
-                  </th>
+      {/* BAŞVURU TAKİP */}
+      {activeMainTab === 'takip' && (
+        <>
+          <div className='mb-4 flex flex-wrap gap-2'>
+            {[
+              { key: 'tumu', label: 'Tümü' },
+              { key: 'islemde', label: 'İşlemde' },
+              { key: 'kapali', label: 'Kapalı' },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setStatusFilter(f.key)}
+                className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  statusFilter === f.key
+                    ? 'border-brand bg-brand text-white'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {f.label} ({counts[f.key]})
+              </button>
+            ))}
+          </div>
 
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('kategori')} 
-                    className="group px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      Başvuru Konusu / Kategori
-                      {renderSortIcon('kategori')}
-                    </div>
-                  </th>
-
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('tarih')} 
-                    className="group px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      Başvuru Tarihi
-                      {renderSortIcon('tarih')}
-                    </div>
-                  </th>
-
-                  <th 
-                    scope="col" 
-                    onClick={() => handleSort('durum')} 
-                    className="group px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      Durum
-                      {renderSortIcon('durum')}
-                    </div>
-                  </th>
-
-                  <th scope="col" className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                    Ekler
-                  </th>
-
-                  <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                    Dilekçe PDF
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {loading ? (
-                  <tr>
-                    <td colSpan="6" className="py-12 text-center text-sm text-gray-500">
-                      Başvurular yükleniyor...
-                    </td>
-                  </tr>
-                ) : (
-                  sortedApplications.map((app) => (
-                    <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {app.takipNo}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {app.kategori}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {app.tarih}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(app.durum)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
-                        {app.dosyaSayisi} Belge
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="inline-flex items-center gap-1 text-brand hover:text-brand-dark transition-colors">
-                          <Download className="h-4 w-4" /> İndir
-                        </button>
-                      </td>
+          <div className='overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm'>
+            {applications.error ? (
+              <ErrorState error={applications.error} onRetry={applications.reload} />
+            ) : (
+              <div className='overflow-x-auto'>
+                <table className='min-w-full divide-y divide-gray-200'>
+                  <thead className='select-none bg-gray-50/50'>
+                    <tr>
+                      <SortableTh k='evrakNo' sortConfig={sortConfig} onSort={(k) => setSortConfig(nextSort(sortConfig, k))}>
+                        Evrak No
+                      </SortableTh>
+                      <SortableTh k='evrakTipi' sortConfig={sortConfig} onSort={(k) => setSortConfig(nextSort(sortConfig, k))}>
+                        Evrak Tipi
+                      </SortableTh>
+                      <SortableTh k='tarih' sortConfig={sortConfig} onSort={(k) => setSortConfig(nextSort(sortConfig, k))}>
+                        Tarih
+                      </SortableTh>
+                      <SortableTh k='acan' sortConfig={sortConfig} onSort={(k) => setSortConfig(nextSort(sortConfig, k))}>
+                        Açan
+                      </SortableTh>
+                      <SortableTh k='durum' sortConfig={sortConfig} onSort={(k) => setSortConfig(nextSort(sortConfig, k))}>
+                        Durum
+                      </SortableTh>
+                      <th scope='col' className='px-6 py-4 text-left text-sm font-semibold text-gray-900'>
+                        Talep PDF
+                      </th>
+                      <th scope='col' className='px-6 py-4 text-left text-sm font-semibold text-gray-900'>
+                        Cevap PDF
+                      </th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className='divide-y divide-gray-100 bg-white'>
+                    {applications.loading ? (
+                      <tr>
+                        <td colSpan='7' className='py-12 text-center text-sm text-gray-500'>
+                          <div className='flex items-center justify-center gap-2'>
+                            <Loader2 className='h-5 w-5 animate-spin text-brand' />
+                            <span>Başvurular yükleniyor...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : visibleApplications.length === 0 ? (
+                      <tr>
+                        <td colSpan='7' className='py-12 text-center text-sm text-gray-500'>
+                          Kayıtlı başvuru bulunmamaktadır.
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleApplications.map((app) => (
+                        <tr key={app.id} className='align-top transition-colors hover:bg-gray-50/50'>
+                          <td className='whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900'>
+                            {app.evrakNo}
+                          </td>
+                          <td className='px-6 py-4 text-sm text-gray-700'>
+                            <p className='font-medium'>{app.evrakTipi}</p>
+                            {app.konu && <p className='mt-0.5 text-xs text-gray-500'>{app.konu}</p>}
+                          </td>
+                          <td className='whitespace-nowrap px-6 py-4 text-sm text-gray-500'>
+                            {formatDate(app.tarih)}
+                          </td>
+                          <td className='whitespace-nowrap px-6 py-4 text-xs text-gray-600'>
+                            {app.acan === 'osb' ? (
+                              <span className='inline-flex items-center gap-1'>
+                                <Building2 className='h-3.5 w-3.5 text-brand' /> {tenantConfig.name}
+                              </span>
+                            ) : (
+                              <span className='inline-flex items-center gap-1'>
+                                <User className='h-3.5 w-3.5 text-gray-400' /> Firmanız
+                              </span>
+                            )}
+                          </td>
+                          <td className='whitespace-nowrap px-6 py-4'>
+                            <StatusBadge status={app.durum} />
+                          </td>
+                          <td className='px-6 py-4 text-sm'>
+                            <FileList files={app.talepDosyalari} applicationId={app.id} />
+                          </td>
+                          <td className='px-6 py-4 text-sm'>
+                            <FileList files={app.cevapDosyalari} applicationId={app.id} />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

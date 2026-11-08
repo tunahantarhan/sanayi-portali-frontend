@@ -1,267 +1,309 @@
-// Backend hazır olana kadar arayüzü besleyen mock database
+// Backend hazır olana kadar arayüzü besleyen mock veriler.
+// Şekiller Backend Rehberi'ndeki API sözleşmesiyle aynıdır.
+// Tüm veriler uydurmadır; gerçek firma verisi kullanılmaz (repo herkese açık).
 
-export const mockDashboardData = {
-  currentMonth: {
-    elektrik: { miktar: '12.450', birim: 'kWh', aktif: true },
-    su: { miktar: null, birim: 'm³', aktif: false }, // Hizmet almayan/tüketimi olmayan fabrika senaryosu
-    dogalgaz: { miktar: '980', birim: 'kWh', aktif: true },
+const pad = (n) => String(n).padStart(2, '0');
+
+// Bugünden n gün sonrası/öncesi, "YYYY-MM-DD"
+const day = (offset) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+// Şu andan n dakika önce, ISO 8601
+const minutesAgo = (n) => new Date(Date.now() - n * 60000).toISOString();
+
+// Bu aydan n ay önce, "YYYY-MM"
+const month = (offset) => {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - offset);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+};
+
+export const mockFirm = {
+  unvan: 'Örnek Deri Sanayi ve Tic. A.Ş.',
+  vergiNo: '1234567890',
+};
+
+export const mockDashboard = {
+  tuketim: {
+    buAy: {
+      elektrik: { miktar: 12450, birim: 'kWh', abonelik: true },
+      su: { miktar: null, birim: 'm³', abonelik: false }, // Su aboneliği olmayan firma senaryosu
+      dogalgaz: { miktar: 980, birim: 'kWh', abonelik: true },
+    },
+    son12Ay: [
+      11000, 11500, 10800, 10200, 12100, 13500, 14200, 14000, 12450, 11800, 11200, 12450,
+    ].map((elektrik, i) => ({
+      ay: month(11 - i),
+      elektrik,
+      su: null,
+      dogalgaz: [1200, 1400, 1100, 800, 600, 400, 350, 380, 520, 760, 900, 980][i],
+    })),
   },
-  chart12Months: [
-    { name: 'Oca', elektrik: 11000, su: 280, dogalgaz: 1200 },
-    { name: 'Şub', elektrik: 11500, su: 290, dogalgaz: 1400 },
-    { name: 'Mar', elektrik: 10800, su: 310, dogalgaz: 1100 },
-    { name: 'Nis', elektrik: 10200, su: 350, dogalgaz: 800 },
-    { name: 'May', elektrik: 12100, su: 380, dogalgaz: 600 },
-    { name: 'Haz', elektrik: 13500, su: 420, dogalgaz: 400 },
-    { name: 'Tem', elektrik: 14200, su: 450, dogalgaz: 350 },
-    { name: 'Ağu', elektrik: 14000, su: 440, dogalgaz: 380 },
-    { name: 'Eyl', elektrik: 12450, su: 320, dogalgaz: 980 },
-    { name: 'Eki', elektrik: 11800, su: 300, dogalgaz: 1300 },
-    { name: 'Kas', elektrik: 11200, su: 290, dogalgaz: 1500 },
-    { name: 'Ara', elektrik: 11000, su: 280, dogalgaz: 1600 },
-  ],
-  announcements: [
+  duyurular: [
     {
       id: 1,
-      type: 'alert',
-      title: 'Yaklaşan Fatura Son Ödeme Tarihi',
-      desc: 'Eylül ayı elektrik faturasının son ödeme tarihi yaklaşmaktadır. Cezai faiz ve kesinti uygulanmaması adına ödemelerinizi vadesinde tamamlayınız.',
-      content:
-        'Bölgemiz genelinde enerji tedarik sürekliliğini korumak adına tüm abonelerimizin vadesi geçmiş elektrik faturalarını en geç 15 Ekim mesai bitimine kadar kapatmaları önemle rica olunur.',
-      date: 'Yarın',
+      tur: 'kritik',
+      baslik: 'Yaklaşan Fatura Son Ödeme Tarihi',
+      ozet: 'Elektrik faturalarının son ödeme tarihi yaklaşmaktadır. Gecikme faizi uygulanmaması için ödemelerinizi vadesinde tamamlayınız.',
+      icerik:
+        'Bölgemiz genelinde enerji tedarik sürekliliğini korumak adına tüm abonelerimizin vadesi geçmiş elektrik faturalarını en geç ay sonuna kadar kapatmaları önemle rica olunur.',
+      tarih: minutesAgo(60 * 20),
     },
     {
       id: 2,
-      type: 'info',
-      title: 'Tarife Güncellemesi',
-      desc: 'Ekim ayı itibarıyla OSB yönetim kurulu kararınca su birim fiyatlarında ve atıksu bedellerinde güncelleme yapılmıştır.',
-      content:
-        'Yeni tarife detaylarına ve arıtma tesisi deşarj parametre katsayılarına resmi web sitemizden veya Bölge Müdürlüğü ilan panosundan ulaşabilirsiniz.',
-      date: '2 saat önce',
+      tur: 'bilgi',
+      baslik: 'Tarife Güncellemesi',
+      ozet: 'Yönetim kurulu kararıyla su birim fiyatlarında ve atık su bedellerinde güncelleme yapılmıştır.',
+      icerik:
+        'Yeni tarife ayrıntılarına ve arıtma tesisi deşarj parametre katsayılarına resmi web sitemizden veya Bölge Müdürlüğü ilan panosundan ulaşabilirsiniz.',
+      tarih: minutesAgo(60 * 50),
     },
     {
       id: 3,
-      type: 'warning',
-      title: 'Planlı Trafo Bakım ve Kesinti Bildirimi',
-      desc: 'Hafta sonu 3. Cadde trafo merkezinde yapılacak revizyon çalışması nedeniyle kısa süreli enerji dalgalanması ve kesinti yaşanacaktır.',
-      content:
-        '28 Ekim Pazar günü 09:00 - 13:00 saatleri arasında jeneratör devreye alma testleri uygulanacaktır. Hassas üretim hatlarınız için gerekli tedbirleri alınız.',
-      date: '28 Ekim',
+      tur: 'uyari',
+      baslik: 'Planlı Trafo Bakımı',
+      ozet: '3. Cadde trafo merkezindeki revizyon çalışması nedeniyle kısa süreli kesinti yaşanacaktır.',
+      icerik:
+        'Hafta sonu 09:00 - 13:00 saatleri arasında jeneratör devreye alma testleri yapılacaktır. Hassas üretim hatlarınız için gerekli önlemleri alınız.',
+      tarih: minutesAgo(60 * 24 * 4),
+    },
+    {
+      id: 4,
+      tur: 'bilgi',
+      baslik: 'Portal Yenilendi',
+      ozet: 'Sanayici portalımız yeni arayüzüyle hizmetinizde.',
+      icerik:
+        'Faturalarınıza, başvurularınıza ve teminat bilgilerinize artık tek ekrandan ulaşabilirsiniz. Görüş ve önerilerinizi Bölge Müdürlüğü ile paylaşabilirsiniz.',
+      tarih: minutesAgo(60 * 24 * 9),
     },
   ],
 };
 
-export const mockInvoices = [
+// Vadesi geçmiş borç, eksik teminat ve eksik DBS. Yoksa boş dizi gelir ve ekranda hiç görünmez.
+export const mockAlerts = [
   {
-    id: 1,
-    no: 'ELK-2024-0871',
-    donem: 'Eylül 2024',
-    tur: 'Elektrik & Doğalgaz',
-    sonOdeme: '15.10.2024',
-    tutar: 12450.0,
-    durum: 'Bekliyor',
+    id: 'vgb-1',
+    tur: 'vadesi_gecmis_borc',
+    baslik: 'Vadesi geçmiş borç',
+    aciklama: 'Ödenmemiş yönetim gideri faturanız bulunmaktadır.',
+    tutar: 2150,
+    sonTarih: day(-12),
+    dosyalar: [{ id: 'vgb-1', ad: 'borc-bildirimi.pdf' }],
   },
   {
-    id: 2,
-    no: 'SU-2024-0872',
-    donem: 'Eylül 2024',
-    tur: 'Su ve Diğer Giderler',
-    sonOdeme: '15.10.2024',
-    tutar: 320.5,
-    durum: 'Bekliyor',
+    id: 'et-1',
+    tur: 'eksik_teminat',
+    baslik: 'Eksik teminat',
+    aciklama: 'Tüketim artışı nedeniyle elektrik teminatınızın tamamlanması gerekmektedir.',
+    tutar: 150000,
+    sonTarih: day(18),
+    dosyalar: [{ id: 'et-1-1', ad: 'teminat-yazisi.pdf' }],
   },
-  {
-    id: 3,
-    no: 'DGL-2024-0873',
-    donem: 'Eylül 2024',
-    tur: 'Elektrik & Doğalgaz',
-    sonOdeme: '15.10.2024',
-    tutar: 980.0,
-    durum: 'Bekliyor',
-  },
-  {
-    id: 4,
-    no: 'ILV-2024-0874',
-    donem: 'Eylül 2024',
-    tur: 'İlave Faturalar',
-    sonOdeme: '20.10.2024',
-    tutar: 2150.0,
-    durum: 'Bekliyor',
-  },
-  {
-    id: 5,
-    no: 'ELK-2024-0762',
-    donem: 'Ağustos 2024',
-    tur: 'Elektrik & Doğalgaz',
-    sonOdeme: '15.09.2024',
-    tutar: 11800.0,
-    durum: 'Ödendi',
-  },
-  {
-    id: 6,
-    no: 'SU-2024-0763',
-    donem: 'Ağustos 2024',
-    tur: 'Su ve Diğer Giderler',
-    sonOdeme: '15.09.2024',
-    tutar: 300.0,
-    durum: 'Ödendi',
-  },
-  {
-    id: 7,
-    no: 'ILV-2024-0764',
-    donem: 'Ağustos 2024',
-    tur: 'İlave Faturalar',
-    sonOdeme: '20.09.2024',
-    tutar: 2150.0,
-    durum: 'Ödendi',
-  },
-  {
-    id: 8,
-    no: 'ELK-2024-0649',
-    donem: 'Temmuz 2024',
-    tur: 'Elektrik & Doğalgaz',
-    sonOdeme: '15.08.2024',
-    tutar: 14200.0,
-    durum: 'Gecikmiş',
-  },
+];
+
+export const mockInvoices = {
+  odemeAktif: false,
+  data: [
+    { id: 'f1', tip: 'ELK', donem: month(1), tarih: day(-20), sonOdeme: day(10), tesisatNo: '1000001', tutar: 12450.0, durum: 'bekliyor' },
+    { id: 'f2', tip: 'GAZ', donem: month(1), tarih: day(-20), sonOdeme: day(10), tesisatNo: '1000002', tutar: 980.0, durum: 'bekliyor' },
+    { id: 'f3', tip: 'SUK', donem: month(1), tarih: day(-20), sonOdeme: day(10), tesisatNo: '1000003', tutar: 320.5, durum: 'bekliyor' },
+    { id: 'f4', tip: 'ART', donem: month(1), tarih: day(-20), sonOdeme: day(10), tesisatNo: '1000003', tutar: 410.75, durum: 'bekliyor' },
+    { id: 'f5', tip: 'YON', donem: month(1), tarih: day(-20), sonOdeme: day(15), tesisatNo: null, tutar: 2150.0, durum: 'bekliyor' },
+    { id: 'f6', tip: 'COP', donem: month(1), tarih: day(-20), sonOdeme: day(15), tesisatNo: null, tutar: 640.0, durum: 'bekliyor' },
+    { id: 'f7', tip: 'ELK', donem: month(2), tarih: day(-50), sonOdeme: day(-20), tesisatNo: '1000001', tutar: 11800.0, durum: 'odendi' },
+    { id: 'f8', tip: 'SUK', donem: month(2), tarih: day(-50), sonOdeme: day(-20), tesisatNo: '1000003', tutar: 300.0, durum: 'odendi' },
+    { id: 'f9', tip: 'YON', donem: month(2), tarih: day(-50), sonOdeme: day(-12), tesisatNo: null, tutar: 2150.0, durum: 'gecikmis' },
+    { id: 'f10', tip: 'ELK', donem: month(3), tarih: day(-80), sonOdeme: day(-50), tesisatNo: '1000001', tutar: 14200.0, durum: 'odendi' },
+  ],
+};
+
+// ERP `evrak-tipler` servisinden gelir. `sik: true` olanlar öne çıkarılır.
+export const mockApplicationTypes = [
+  { id: 1, ad: 'Kanal Bağlantı İzni', aciklama: 'Kanal bağlantı izni alma veya yenileme başvurusu.', sik: true },
+  { id: 2, ad: 'Sayaç ve Okuma Hata Bildirimi', aciklama: 'Yanlış veya eksik okunduğunu düşündüğünüz sayaçlar için.', sik: true },
+  { id: 3, ad: 'Altyapı ve Arıza Talebi', aciklama: 'Elektrik, su ve doğalgaz altyapısındaki arızalar.', sik: true },
+  { id: 4, ad: 'Genel Dilekçe', aciklama: 'Diğer istek ve şikayetleriniz için standart dilekçe.', sik: true },
+  { id: 5, ad: 'Abonelik Başvurusu', aciklama: 'Yeni elektrik, su veya doğalgaz aboneliği.', sik: false },
+  { id: 6, ad: 'Abonelik İptali', aciklama: 'Mevcut aboneliğin sonlandırılması.', sik: false },
+  { id: 7, ad: 'Yapı Ruhsatı', aciklama: 'Yeni yapı veya ek bina ruhsat başvurusu.', sik: false },
+  { id: 8, ad: 'İskan Başvurusu', aciklama: 'Yapı kullanma izin belgesi başvurusu.', sik: false },
+  { id: 9, ad: 'Tadilat İzni', aciklama: 'Mevcut yapıda değişiklik izni.', sik: false },
+  { id: 10, ad: 'Bölgeye Araç Giriş İzni', aciklama: 'Lojistik araçların bölgeye giriş kayıtları.', sik: false },
+  { id: 11, ad: 'Teminat İadesi', aciklama: 'Teminat mektubu veya nakit teminat iadesi.', sik: false },
+  { id: 12, ad: 'Unvan Değişikliği', aciklama: 'Firma unvanı değişikliğinin bildirilmesi.', sik: false },
+  { id: 13, ad: 'Kiracı Bildirimi', aciklama: 'Parselde faaliyet gösteren kiracının bildirilmesi.', sik: false },
+  { id: 14, ad: 'Arıtma Numune Talebi', aciklama: 'Atık su numune alma talebi.', sik: false },
+  { id: 15, ad: 'İşgaliye Başvurusu', aciklama: 'Ortak alan kullanım izni.', sik: false },
+  { id: 16, ad: 'Fatura İtirazı', aciklama: 'Fatura tutarına itiraz.', sik: false },
 ];
 
 export const mockApplications = [
   {
-    id: 1,
-    takipNo: 'IDOSB-2026-9845',
-    kategori: 'Sayaç ve Okuma Hata Bildirimi',
-    tarih: '24.10.2026',
-    durum: 'İnceleniyor',
-    dosyaSayisi: 2,
+    id: 4512,
+    evrakNo: '4512',
+    evrakTipi: 'Sayaç ve Okuma Hata Bildirimi',
+    konu: 'Elektrik sayacı okuma farkı',
+    tarih: day(-11),
+    durum: 'islemde',
+    acan: 'firma',
+    talepDosyalari: [
+      { id: '4512-1', ad: 'dilekce.pdf' },
+      { id: '4512-2', ad: 'sayac-fotografi.jpg' },
+    ],
+    cevapDosyalari: [],
   },
   {
-    id: 2,
-    takipNo: 'IDOSB-2026-9720',
-    kategori: 'Bölgeye Araç/Tır Giriş İzni',
-    tarih: '18.10.2026',
-    durum: 'Onaylandı',
-    dosyaSayisi: 1,
+    id: 4470,
+    evrakNo: '4470',
+    evrakTipi: 'Kanal Bağlantı İzni',
+    konu: 'Kanal bağlantı izni yenileme',
+    tarih: day(-17),
+    durum: 'kapali',
+    acan: 'firma',
+    talepDosyalari: [{ id: '4470-1', ad: 'basvuru.pdf' }],
+    cevapDosyalari: [{ id: '4470-9', ad: 'izin-belgesi.pdf' }],
   },
   {
-    id: 3,
-    takipNo: 'IDOSB-2026-9512',
-    kategori: 'Altyapı ve Arıza Talebi',
-    tarih: '05.10.2026',
-    durum: 'Tamamlandı',
-    dosyaSayisi: 3,
+    id: 4391,
+    evrakNo: '4391',
+    evrakTipi: 'Eksik Evrak Bildirimi',
+    konu: 'Güncel imza sirküleri talebi',
+    tarih: day(-30),
+    durum: 'islemde',
+    acan: 'osb',
+    talepDosyalari: [{ id: '4391-1', ad: 'osb-yazisi.pdf' }],
+    cevapDosyalari: [],
   },
   {
-    id: 4,
-    takipNo: 'IDOSB-2026-9104',
-    kategori: 'Diğer Dilekçe ve Talepler',
-    tarih: '12.09.2026',
-    durum: 'Reddedildi',
-    dosyaSayisi: 1,
+    id: 4202,
+    evrakNo: '4202',
+    evrakTipi: 'Genel Dilekçe',
+    konu: 'Otopark düzenlemesi talebi',
+    tarih: day(-53),
+    durum: 'kapali',
+    acan: 'firma',
+    talepDosyalari: [{ id: '4202-1', ad: 'dilekce.pdf' }],
+    cevapDosyalari: [{ id: '4202-9', ad: 'cevap-yazisi.pdf' }],
   },
 ];
 
-export const mockKavaletoList = [
-  {
-    id: 1,
-    sevkNo: 'KVT-2026-0041',
-    sevkTarihi: '22.10.2026',
-    miktarTon: 14.25,
-    aracPlaka: '34 VT 4810',
-    durum: 'Onaylandı',
-  },
-  {
-    id: 2,
-    sevkNo: 'KVT-2026-0038',
-    sevkTarihi: '15.10.2026',
-    miktarTon: 22.8,
-    aracPlaka: '34 KV 1905',
-    durum: 'Onaylandı',
-  },
-  {
-    id: 3,
-    sevkNo: 'KVT-2026-0031',
-    sevkTarihi: '04.10.2026',
-    miktarTon: 18.1,
-    aracPlaka: '34 AB 7712',
-    durum: 'Onaylandı',
-  },
-  {
-    id: 4,
-    sevkNo: 'KVT-2026-0027',
-    sevkTarihi: '28.09.2026',
-    miktarTon: 9.6,
-    aracPlaka: '34 DB 3301',
-    durum: 'Onaylandı',
-  },
+// Yalnızca onaylanan kavaleto kayıtları gelir.
+export const mockKavaleto = [
+  { id: 41, sevkNo: 'KVT-0041', sevkTarihi: day(-13), miktarTon: 14.25, aracPlaka: '34 XX 0001', dosyaId: 'k41' },
+  { id: 38, sevkNo: 'KVT-0038', sevkTarihi: day(-20), miktarTon: 22.8, aracPlaka: '34 XX 0002', dosyaId: 'k38' },
+  { id: 31, sevkNo: 'KVT-0031', sevkTarihi: day(-31), miktarTon: 18.1, aracPlaka: '34 XX 0003', dosyaId: 'k31' },
+  { id: 27, sevkNo: 'KVT-0027', sevkTarihi: day(-37), miktarTon: 9.6, aracPlaka: '34 XX 0004', dosyaId: null },
 ];
 
 export const mockFirmProfile = {
-  unvan: 'Örnek Deri Sanayi ve Tic. A.Ş.',
-  vergiNo: '1234567890',
+  unvan: mockFirm.unvan,
+  vergiNo: mockFirm.vergiNo,
   vergiDairesi: 'Örnek V.D.',
-  aboneNo: 'TR-IDOSB-88341',
-  smsTebligat: {
-    durum: 'Aktif',
-    telefon: '+90 532 *** ** 00',
-  },
+  aboneNo: 'ABN-000123',
+  smsTebligat: { aktif: true, telefon: '+90 5** *** ** 12' },
   teminatlar: [
     {
       id: 1,
-      baslik: 'Garanti BBVA - Teminat Mektubu',
-      mektupNo: 'GR-994102',
-      tutar: '1.500.000 ₺',
-      bitisTarihi: '01.11.2026',
-      durum: 'Bitiş: 01.11.2026',
-      kritik: true,
+      tur: 'teminat_mektubu',
+      banka: 'Örnek Bankası',
+      belgeNo: 'TM-000001',
+      tutar: 1500000,
+      bitisTarihi: day(5),
     },
     {
       id: 2,
-      baslik: 'DBS (Doğrudan Borçlanma Sistemi)',
-      mektupNo: 'İş Bankası',
-      tutar: '750.000 ₺',
+      tur: 'dbs',
+      banka: 'Deneme Bankası',
+      belgeNo: null,
+      tutar: 750000,
       bitisTarihi: null,
-      durum: 'Süresiz / Aktif',
-      kritik: false,
     },
   ],
   kanalIzni: {
-    belgeNo: 'KB-2024/091',
-    baslangicTarihi: '08.11.2024',
-    bitisTarihi: '08.11.2026',
-    kalanGunText: '12 Gün Kaldı',
-  },
-  osbIletisim: {
-    adres: 'Aydınlı Mah. Deri OSB Yan Yol Cad. No:1 Tuzla / İSTANBUL',
-    santral: '(0216) 394 14 80',
-    eposta: 'info@ideriosb.org.tr',
-    kep: 'ideriosb@hs01.kep.tr',
+    belgeNo: 'KB-0091',
+    baslangicTarihi: day(-718),
+    bitisTarihi: day(12),
   },
 };
 
 export const mockNotifications = [
   {
     id: 1,
-    title: 'Banka Teminat Süresi',
-    desc: 'Garanti Bankası teminat mektubunuzun bitimine 5 gün kaldı.',
-    time: '10 dk önce',
-    unread: true,
-    type: 'alert',
+    tur: 'uyari',
+    baslik: 'Teminat Süresi',
+    aciklama: 'Teminat mektubunuzun bitimine 5 gün kaldı.',
+    zaman: minutesAgo(10),
+    okundu: false,
   },
   {
     id: 2,
-    title: 'Yeni Fatura Kesildi',
-    desc: 'Eylül 2024 elektrik faturanız sisteminize yansıdı.',
-    time: '2 saat önce',
-    unread: true,
-    type: 'invoice',
+    tur: 'fatura',
+    baslik: 'Yeni Fatura',
+    aciklama: 'Elektrik faturanız sisteme yansıdı.',
+    zaman: minutesAgo(120),
+    okundu: false,
   },
   {
     id: 3,
-    title: 'Kanal Bağlantı İzni',
-    desc: 'Kanal bağlantı izni yenileme başvurunuz incelemeye alındı.',
-    time: 'Dün',
-    unread: false,
-    type: 'info',
+    tur: 'bilgi',
+    baslik: 'Başvuru Güncellendi',
+    aciklama: '4470 numaralı başvurunuz sonuçlandı.',
+    zaman: minutesAgo(60 * 26),
+    okundu: true,
+  },
+];
+
+// OSB'nin firmaya gönderdiği KEP yazıları
+export const mockKep = [
+  {
+    id: 301,
+    konu: 'Teminat tamamlama hakkında',
+    gonderen: 'Bölge Müdürlüğü',
+    tarih: minutesAgo(60 * 24 * 3),
+    ozet: 'Elektrik tüketim artışı nedeniyle teminat tutarınızın güncellenmesi gerekmektedir.',
+    ekler: [{ id: '301-1', ad: 'yazi.pdf' }],
+  },
+  {
+    id: 287,
+    konu: 'Planlı bakım çalışması',
+    gonderen: 'Teknik İşler Müdürlüğü',
+    tarih: minutesAgo(60 * 24 * 12),
+    ozet: 'Arıtma tesisinde yapılacak planlı bakım çalışmasına ilişkin bilgilendirme.',
+    ekler: [],
+  },
+];
+
+// Firmaya gönderilen SMS ve e-postalar (gönderim kaydı)
+export const mockMessages = [
+  {
+    id: 9001,
+    kanal: 'sms',
+    hedef: '+90 5** *** ** 12',
+    konu: null,
+    icerik: 'Sayın üyemiz, elektrik faturanız düzenlenmiştir. Son ödeme tarihi ay sonudur.',
+    tarih: minutesAgo(60 * 2),
+    durum: 'iletildi',
+  },
+  {
+    id: 9000,
+    kanal: 'eposta',
+    hedef: 'f***@ornek.com.tr',
+    konu: 'Teminat tamamlama hakkında',
+    icerik: 'Elektrik tüketim artışı nedeniyle teminat tutarınızın güncellenmesi gerekmektedir. Ayrıntılar KEP ile iletilmiştir.',
+    tarih: minutesAgo(60 * 24 * 3),
+    durum: 'iletildi',
+  },
+  {
+    id: 8990,
+    kanal: 'sms',
+    hedef: '+90 5** *** ** 12',
+    konu: null,
+    icerik: 'Planlı trafo bakımı nedeniyle hafta sonu kısa süreli kesinti yaşanacaktır.',
+    tarih: minutesAgo(60 * 24 * 4),
+    durum: 'basarisiz',
   },
 ];

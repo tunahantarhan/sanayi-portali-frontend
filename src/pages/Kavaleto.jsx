@@ -1,25 +1,25 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Truck, ArrowUpDown, ArrowUp, ArrowDown, HelpCircle, Loader2 } from 'lucide-react';
-import { getKavaletoList } from '../services/api';
+import { Truck, HelpCircle, Loader2 } from 'lucide-react';
+import { getKavaletoList, fileUrls } from '../services/api';
+import useApi from '../hooks/useApi';
+import SortableTh from '../components/ui/SortableTh';
+import FileLink from '../components/ui/FileLink';
+import { ErrorState } from '../components/ui/PageState';
+import { formatDate, formatNumber, toTimestamp } from '../utils/format';
+import { sortList, nextSort } from '../utils/sort';
+
+const SORTERS = {
+  sevkNo: (k) => k.sevkNo,
+  sevkTarihi: (k) => toTimestamp(k.sevkTarihi),
+  aracPlaka: (k) => k.aracPlaka,
+  miktarTon: (k) => k.miktarTon,
+};
 
 export default function Kavaleto() {
-  const [kavaletoData, setKavaletoData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, reload } = useApi(getKavaletoList);
   const [sortConfig, setSortConfig] = useState({ key: 'sevkTarihi', direction: 'desc' });  
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const tooltipRef = useRef(null);
-
-  useEffect(() => {
-    getKavaletoList()
-      .then((data) => {
-        setKavaletoData(data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Kavaleto verileri alınamadı:', err);
-        setLoading(false);
-      });
-  }, []);
 
   // Mobilde dışarı tıklandığında tooltip'i kapat
   useEffect(() => {
@@ -38,60 +38,8 @@ export default function Kavaleto() {
     };
   }, [isTooltipOpen]);
 
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const parseDate = (dateStr) => {
-    if (!dateStr) return 0;
-    const [day, month, year] = dateStr.split('.');
-    return new Date(`${year}-${month}-${day}`).getTime();
-  };
-
-  const sortedData = useMemo(() => {
-    const list = [...kavaletoData];
-    if (sortConfig.key) {
-      list.sort((a, b) => {
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
-
-        if (sortConfig.key === 'sevkTarihi') {
-          aVal = parseDate(aVal);
-          bVal = parseDate(bVal);
-        }
-
-        if (sortConfig.key === 'miktarTon') {
-          return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-
-        if (typeof aVal === 'string') {
-          return sortConfig.direction === 'asc' 
-            ? aVal.localeCompare(bVal, 'tr') 
-            : bVal.localeCompare(aVal, 'tr');
-        }
-
-        return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-      });
-    }
-    return list;
-  }, [kavaletoData, sortConfig]);
-
-  const renderSortIcon = (columnKey) => {
-    if (sortConfig.key !== columnKey) {
-      return <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />;
-    }
-    return sortConfig.direction === 'asc' 
-      ? <ArrowUp className="h-3.5 w-3.5 text-brand" /> 
-      : <ArrowDown className="h-3.5 w-3.5 text-brand" />;
-  };
-
-  const handleDownloadPdf = (sevkNo) => {
-    alert(`${sevkNo} numaralı Kavaleto kantar tartım fişi indiriliyor.`);
-  };
+  const sortedData = useMemo(() => sortList(data || [], SORTERS, sortConfig), [data, sortConfig]);
+  const onSort = (key) => setSortConfig(nextSort(sortConfig, key));
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -144,47 +92,25 @@ export default function Kavaleto() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        {error ? (
+          <ErrorState error={error} onRetry={reload} />
+        ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50/50">
+            <thead className="select-none bg-gray-50/50">
               <tr>
-                <th 
-                  scope="col" 
-                  onClick={() => handleSort('sevkNo')} 
-                  className="group px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                >
-                  <div className="flex items-center gap-2">
-                    Sevk / Fiş No
-                    {renderSortIcon('sevkNo')}
-                  </div>
-                </th>
-
-                <th 
-                  scope="col" 
-                  onClick={() => handleSort('sevkTarihi')} 
-                  className="group px-6 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                >
-                  <div className="flex items-center gap-2">
-                    Sevk Tarihi
-                    {renderSortIcon('sevkTarihi')}
-                  </div>
-                </th>
-
-                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                <SortableTh k="sevkNo" sortConfig={sortConfig} onSort={onSort}>
+                  Sevk / Fiş No
+                </SortableTh>
+                <SortableTh k="sevkTarihi" sortConfig={sortConfig} onSort={onSort}>
+                  Sevk Tarihi
+                </SortableTh>
+                <SortableTh k="aracPlaka" sortConfig={sortConfig} onSort={onSort}>
                   Araç Plakası
-                </th>
-
-                <th 
-                  scope="col" 
-                  onClick={() => handleSort('miktarTon')} 
-                  className="group px-6 py-4 text-right text-sm font-semibold text-gray-900 cursor-pointer select-none hover:bg-gray-100/60"
-                >
-                  <div className="flex items-center justify-end gap-2">
-                    Miktar (Ton)
-                    {renderSortIcon('miktarTon')}
-                  </div>
-                </th>
-
+                </SortableTh>
+                <SortableTh k="miktarTon" sortConfig={sortConfig} onSort={onSort} align="right">
+                  Miktar (Ton)
+                </SortableTh>
                 <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
                   Kantar Fişi PDF
                 </th>
@@ -213,7 +139,7 @@ export default function Kavaleto() {
                       {item.sevkNo}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.sevkTarihi}
+                      {formatDate(item.sevkTarihi)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-800">
@@ -222,15 +148,18 @@ export default function Kavaleto() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-900">
-                      {item.miktarTon.toFixed(2)} Ton
+                      {formatNumber(item.miktarTon, 2)} Ton
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={() => handleDownloadPdf(item.sevkNo)}
-                        className="inline-flex items-center gap-1.5 text-brand hover:text-brand-dark font-medium transition-colors"
-                      >
-                        <Download className="h-4 w-4" /> PDF İndir
-                      </button>
+                      {item.dosyaId ? (
+                        <FileLink
+                          url={fileUrls.kavaletoPdf(item.id)}
+                          label="PDF İndir"
+                          fileName={`${item.sevkNo}.pdf`}
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-400">Belge yok</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -238,6 +167,7 @@ export default function Kavaleto() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

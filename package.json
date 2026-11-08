@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:server": "vite build --mode server",
+    "pack:server": "npm run build:server && mkdir -p release && rm -f release/sanayi-portali.zip && cd dist && zip -qr ../release/sanayi-portali.zip .",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",

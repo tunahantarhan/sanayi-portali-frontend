@@ -28,3 +28,5 @@ dist-ssr
 
 # Local project notes, requirements and chat exports
 notlar/
+# Sunucuya aktarılan build paketi (npm run pack:server)
+release/

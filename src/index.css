@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Tema renkleri: config yüklenmeden önceki varsayılanlar. Asıl değerleri src/theme.js yazar. */
+:root {
+  --color-brand: 131 71 47;
+  --color-brand-light: 160 97 72;
+  --color-brand-dark: 102 53 33;
+}

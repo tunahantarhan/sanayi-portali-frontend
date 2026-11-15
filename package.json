@@ -10,7 +10,7 @@
     "pack:server": "npm run build:server && mkdir -p release && rm -f release/sanayi-portali.zip && cd dist && zip -qr ../release/sanayi-portali.zip .",
     "lint": "eslint .",
     "preview": "vite preview",
-    "predeploy": "npm run build",
+    "predeploy": "npm run build && cp dist/index.html dist/404.html",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {

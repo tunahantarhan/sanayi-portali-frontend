@@ -4,7 +4,7 @@
 //
 // USE_MOCK açıkken (varsayılan) veriler mockApi'den gelir; VITE_USE_MOCK=false ile gerçek backend kullanılır.
 
-import { http, buildApiUrl, USE_MOCK } from './http';
+import { http, buildApiUrl, USE_MOCK, isMockFor } from './http';
 import { mockApi } from './mockApi';
 
 const get = (url) => http.get(url).then((r) => r.data);
@@ -47,7 +47,9 @@ export const getInvoices = () => (USE_MOCK ? mockApi.getInvoices() : get('/invoi
 
 // GET /api/applications/types -> { data: [{ id, ad, aciklama, sik }] }
 export const getApplicationTypes = () =>
-  (USE_MOCK ? mockApi.getApplicationTypes() : get('/applications/types')).then((r) => r.data);
+  (isMockFor('applicationTypes') ? mockApi.getApplicationTypes() : get('/applications/types')).then(
+    (r) => r.data
+  );
 
 // GET /api/applications -> { data: [...] }
 export const getApplications = () =>

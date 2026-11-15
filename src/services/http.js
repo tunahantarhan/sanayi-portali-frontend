@@ -10,6 +10,20 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+// Yalnızca `npm run dev`: mock moddayken bile burada listelenen uçlar /api'ye gider ve
+// yerel ERP ara katmanından (dev-tools/erpDevProxy.js) gerçek veri alır. Build'de her zaman boştur.
+const DEV_LIVE_ENDPOINTS = new Set(
+  import.meta.env.DEV
+    ? (import.meta.env.VITE_DEV_LIVE_ENDPOINTS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : []
+);
+
+// Verilen uç için mock mu kullanılacak?
+export const isMockFor = (endpoint) => USE_MOCK && !DEV_LIVE_ENDPOINTS.has(endpoint);
+
 export const http = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // Oturum HttpOnly cookie ile taşınır

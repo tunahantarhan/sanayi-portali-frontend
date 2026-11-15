@@ -74,8 +74,10 @@ export const getKavaletoList = () =>
 
 // ---- Firmam ----
 
-// GET /api/firm/profile
-export const getFirmProfile = () => (USE_MOCK ? mockApi.getFirmProfile() : get('/firm/profile'));
+// GET /api/firm/profile -> { unvan, vergiNo, nace, yetkili, yerler, teminatlar?, kanalIzni? }
+// teminatlar/kanalIzni gönderilmezse ilgili kartlar gösterilmez.
+export const getFirmProfile = () =>
+  isMockFor('firmProfile') ? mockApi.getFirmProfile() : get('/firm/profile');
 
 // ---- Bildirimler ----
 

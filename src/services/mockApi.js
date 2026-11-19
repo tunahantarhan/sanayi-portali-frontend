@@ -2,6 +2,7 @@
 // Yalnızca VITE_USE_MOCK=false verilmediğinde (demo, geliştirme) kullanılır.
 
 import { ApiError } from './http';
+import { tenantConfig } from '../config';
 import {
   mockFirm,
   mockDashboard,
@@ -20,9 +21,7 @@ const delay = (data, ms = 250) =>
   new Promise((resolve) => setTimeout(() => resolve(structuredClone(data)), ms));
 
 const fail = (message, status, code, ms = 400) =>
-  new Promise((_, reject) =>
-    setTimeout(() => reject(new ApiError(message, { status, code })), ms)
-  );
+  new Promise((_, reject) => setTimeout(() => reject(new ApiError(message, { status, code })), ms));
 
 // Demo oturumu sayfa yenilenince kaybolmasın diye sessionStorage'da tutulur.
 const SESSION_KEY = 'mock-session';
@@ -44,9 +43,14 @@ const storage = {
   },
 };
 
-let pendingLogin = null;
+let pendingLogin = null; // { vergiNo, sendCount }
 let lastCodeSentAt = 0;
-const OTP_SEC = 120;
+
+// Kademeli süre: 1. gönderim 60 sn, 2. 180 sn, sonrakiler 300 sn (config.otpStepsSec)
+const otpSec = () => {
+  const steps = tenantConfig.otpStepsSec;
+  return steps[Math.min((pendingLogin?.sendCount || 1) - 1, steps.length - 1)];
+};
 
 let applications = structuredClone(mockApplications);
 let notifications = structuredClone(mockNotifications);
@@ -57,14 +61,15 @@ export const mockApi = {
     if (!/^\d{10,11}$/.test(vergiNo) || !sifre || sifre.length < 8) {
       return fail('Vergi numarası veya şifre hatalı.', 401, 'INVALID_CREDENTIALS');
     }
-    pendingLogin = { vergiNo };
+    pendingLogin = { vergiNo, sendCount: 1 };
     lastCodeSentAt = Date.now();
-    return delay({ kanal: 'sms', hedef: '+90 5** *** ** 12', gecerlilikSn: OTP_SEC }, 600);
+    return delay({ kanal: 'sms', hedef: '+90 5** *** ** 12', gecerlilikSn: otpSec() }, 600);
   },
 
   async verify({ kod }) {
-    if (!pendingLogin) return fail('Oturum süresi doldu, lütfen tekrar giriş yapınız.', 401, 'NO_PENDING_LOGIN');
-    if ((Date.now() - lastCodeSentAt) / 1000 > OTP_SEC) {
+    if (!pendingLogin)
+      return fail('Oturum süresi doldu, lütfen tekrar giriş yapınız.', 401, 'NO_PENDING_LOGIN');
+    if ((Date.now() - lastCodeSentAt) / 1000 > otpSec()) {
       return fail('Kodun süresi doldu. Lütfen yeni kod isteyiniz.', 401, 'OTP_EXPIRED');
     }
     // Demo: "000000" hatalı kod senaryosunu gösterir, diğer 6 haneli kodlar kabul edilir.
@@ -78,13 +83,15 @@ export const mockApi = {
   },
 
   async resend() {
-    if (!pendingLogin) return fail('Oturum süresi doldu, lütfen tekrar giriş yapınız.', 401, 'NO_PENDING_LOGIN');
+    if (!pendingLogin)
+      return fail('Oturum süresi doldu, lütfen tekrar giriş yapınız.', 401, 'NO_PENDING_LOGIN');
     const elapsed = (Date.now() - lastCodeSentAt) / 1000;
-    if (elapsed < OTP_SEC) {
+    if (elapsed < otpSec()) {
       return fail('Yeni kod için süre dolmadı.', 429, 'OTP_TOO_EARLY');
     }
+    pendingLogin = { ...pendingLogin, sendCount: pendingLogin.sendCount + 1 };
     lastCodeSentAt = Date.now();
-    return delay({ kanal: 'sms', hedef: '+90 5** *** ** 12', gecerlilikSn: OTP_SEC }, 500);
+    return delay({ kanal: 'sms', hedef: '+90 5** *** ** 12', gecerlilikSn: otpSec() }, 500);
   },
 
   async logout() {

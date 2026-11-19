@@ -14,7 +14,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { tenantConfig } from '../config';
 import { useAuth } from '../auth/AuthContext';
 import { login, verifyCode, resendCode } from '../services/api';
-import { USE_MOCK } from '../services/http';
+import { isMockFor } from '../services/http';
 import Modal from '../components/ui/Modal';
 
 const formatTime = (seconds) => {
@@ -58,7 +58,7 @@ export default function Login() {
 
   const startCountdown = (info) => {
     setDelivery(info);
-    setExpiresAt(Date.now() + (info?.gecerlilikSn || tenantConfig.otpDurationSec) * 1000);
+    setExpiresAt(Date.now() + (info?.gecerlilikSn || tenantConfig.otpStepsSec[0]) * 1000);
   };
 
   const handleFirstStepSubmit = async (e) => {
@@ -209,7 +209,7 @@ export default function Login() {
                 )}
               </button>
 
-              {USE_MOCK && (
+              {isMockFor('auth') && (
                 <p className='rounded-lg bg-amber-50 p-3 text-center text-xs text-amber-800'>
                   Demo modu: 10 haneli herhangi bir vergi numarası ve en az 8 karakterli şifreyle
                   giriş yapılabilir.
@@ -283,7 +283,7 @@ export default function Login() {
                 </button>
               </div>
 
-              {USE_MOCK && (
+              {isMockFor('auth') && (
                 <p className='rounded-lg bg-amber-50 p-3 text-center text-xs text-amber-800'>
                   Demo modu: 6 haneli herhangi bir kod geçerlidir. 000000 hatalı kod örneğidir.
                 </p>

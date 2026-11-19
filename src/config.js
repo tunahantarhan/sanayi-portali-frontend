@@ -38,8 +38,9 @@ export const tenantConfig = {
     kanalIzni: 30,
   },
 
-  // Doğrulama kodu süresi (sn). Backend `gecerlilikSn` gönderirse o değer önceliklidir.
-  otpDurationSec: 120,
+  // Doğrulama kodu süresi ve yeni kod için bekleme (sn): her gönderimde bir sonraki adıma geçer.
+  // Backend `gecerlilikSn` gönderirse o değer önceliklidir.
+  otpStepsSec: [60, 180, 300],
 
   // Yan menü. `to` iç sayfa, `href` dış bağlantıdır. `icon` değerleri Layout.jsx'teki ikon listesindedir.
   menu: [

@@ -13,21 +13,22 @@ const post = (url, body) => http.post(url, body).then((r) => r.data);
 // ---- Giriş ----
 
 // POST /api/auth/login  { vergiNo, sifre } -> { kanal, hedef, gecerlilikSn }
+// gecerlilikSn: kodun geçerliliği ve yeni kod için bekleme; her gönderimde kademeli artar (60/180/300).
 export const login = (vergiNo, sifre) =>
-  USE_MOCK ? mockApi.login({ vergiNo, sifre }) : post('/auth/login', { vergiNo, sifre });
+  isMockFor('auth') ? mockApi.login({ vergiNo, sifre }) : post('/auth/login', { vergiNo, sifre });
 
 // POST /api/auth/verify  { kod } -> { firma }  (+ oturum cookie'si)
 export const verifyCode = (kod) =>
-  USE_MOCK ? mockApi.verify({ kod }) : post('/auth/verify', { kod });
+  isMockFor('auth') ? mockApi.verify({ kod }) : post('/auth/verify', { kod });
 
 // POST /api/auth/resend -> { kanal, hedef, gecerlilikSn }
-export const resendCode = () => (USE_MOCK ? mockApi.resend() : post('/auth/resend'));
+export const resendCode = () => (isMockFor('auth') ? mockApi.resend() : post('/auth/resend'));
 
 // POST /api/auth/logout -> 204
-export const logout = () => (USE_MOCK ? mockApi.logout() : post('/auth/logout'));
+export const logout = () => (isMockFor('auth') ? mockApi.logout() : post('/auth/logout'));
 
 // GET /api/auth/me -> { firma } | 401
-export const getSession = () => (USE_MOCK ? mockApi.me() : get('/auth/me'));
+export const getSession = () => (isMockFor('auth') ? mockApi.me() : get('/auth/me'));
 
 // ---- Ana sayfa ----
 

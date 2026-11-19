@@ -37,7 +37,7 @@ export const getDashboardData = () => (USE_MOCK ? mockApi.getDashboard() : get('
 
 // GET /api/alerts -> { data: [{ id, tur, baslik, aciklama, tutar, sonTarih, dosyalar }] }
 export const getAlerts = () =>
-  (USE_MOCK ? mockApi.getAlerts() : get('/alerts')).then((r) => r.data);
+  (isMockFor('alerts') ? mockApi.getAlerts() : get('/alerts')).then((r) => r.data);
 
 // ---- Faturalar ----
 
@@ -80,6 +80,11 @@ export const getKavaletoList = () =>
 export const getFirmProfile = () =>
   isMockFor('firmProfile') ? mockApi.getFirmProfile() : get('/firm/profile');
 
+// GET /api/firm/isgaliye -> { data: [{ id, durum, durumText, tur, parsel, miktar, birim,
+//   baslangic, bitis, gun, tutar, faturaNo, faturaTarihi, aciklama, dosyalar: [{ id, ad, boyut }] }] }
+export const getIsgaliye = () =>
+  (isMockFor('isgaliye') ? mockApi.getIsgaliye() : get('/firm/isgaliye')).then((r) => r.data);
+
 // ---- Bildirimler ----
 
 // GET /api/notifications -> { data: [...] }
@@ -112,7 +117,14 @@ export const fileUrls = {
       `/applications/${encodeURIComponent(applicationId)}/files/${encodeURIComponent(fileId)}`
     ),
   kavaletoPdf: (kavaletoId) => fileUrl(`/kavaleto/${encodeURIComponent(kavaletoId)}/pdf`),
-  alertFile: (fileId) => fileUrl(`/alerts/files/${encodeURIComponent(fileId)}`),
+  isgaliyeFile: (kayitId, fileId) =>
+    isMockFor('isgaliye')
+      ? null
+      : buildApiUrl(
+          `/firm/isgaliye/${encodeURIComponent(kayitId)}/files/${encodeURIComponent(fileId)}`
+        ),
+  alertFile: (fileId) =>
+    isMockFor('alerts') ? null : buildApiUrl(`/alerts/files/${encodeURIComponent(fileId)}`),
   kepAttachment: (kepId, fileId) =>
     fileUrl(`/kep/${encodeURIComponent(kepId)}/files/${encodeURIComponent(fileId)}`),
 };

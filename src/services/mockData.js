@@ -409,6 +409,47 @@ export const mockFirmProfile = {
   },
 };
 
+// Uydurma işgaliye kayıtları (ERP isgaliye servisinin sözleşmeye çevrilmiş hali)
+export const mockIsgaliye = [
+  {
+    id: 2,
+    durum: 'onaylandi',
+    durumText: 'Onaylandı',
+    tur: 'Araç',
+    parsel: 'A-1',
+    miktar: 2,
+    birim: 'Adet',
+    baslangic: day(-20),
+    bitis: day(-6),
+    gun: 15,
+    tutar: 1800,
+    faturaNo: null,
+    faturaTarihi: null,
+    aciklama: 'Ortak yol kenarına araç park edilmesi.',
+    dosyalar: [{ id: '0', ad: 'tutanak.pdf', boyut: 120000 }],
+  },
+  {
+    id: 1,
+    durum: 'faturalandi',
+    durumText: 'Faturalandı',
+    tur: 'Alan',
+    parsel: 'A-1',
+    miktar: 12.5,
+    birim: 'm2',
+    baslangic: day(-75),
+    bitis: day(-72),
+    gun: 4,
+    tutar: 2250,
+    faturaNo: 'OSB-DEMO-0001',
+    faturaTarihi: day(-60),
+    aciklama: 'Ortak alana malzeme konulması.',
+    dosyalar: [
+      { id: '0', ad: 'tutanak.pdf', boyut: 98000 },
+      { id: '1', ad: 'fotograf.jpg', boyut: 2400000 },
+    ],
+  },
+];
+
 export const mockNotifications = [
   {
     id: 1,

@@ -12,6 +12,7 @@ import {
   mockApplications,
   mockKavaleto,
   mockFirmProfile,
+  mockIsgaliye,
   mockNotifications,
   mockKep,
   mockMessages,
@@ -137,6 +138,7 @@ export const mockApi = {
 
   getKavaleto: () => delay({ data: mockKavaleto }),
   getFirmProfile: () => delay(mockFirmProfile),
+  getIsgaliye: () => delay({ data: mockIsgaliye }),
   getNotifications: () => delay({ data: notifications }),
 
   async markAllNotificationsRead() {

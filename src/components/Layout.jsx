@@ -21,7 +21,7 @@ import {
 import { tenantConfig } from '../config';
 import { useAuth } from '../auth/AuthContext';
 import { getNotifications, markAllNotificationsAsRead } from '../services/api';
-import { USE_MOCK } from '../services/http';
+import { USE_MOCK, HAS_DEV_LIVE } from '../services/http';
 import { formatRelative } from '../utils/format';
 import { LoadingState } from './ui/PageState';
 
@@ -396,7 +396,16 @@ export default function Layout() {
 
         {USE_MOCK && (
           <div className="m-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-            <strong>Demo modu:</strong> Veriler örnektir, gerçek firma verisi değildir.
+            {HAS_DEV_LIVE ? (
+              <>
+                <strong>Karma mod (geliştirme):</strong> Bazı ekranlar ERP'den gerçek veri alıyor,
+                diğerleri örnek veridir.
+              </>
+            ) : (
+              <>
+                <strong>Demo modu:</strong> Veriler örnektir, gerçek firma verisi değildir.
+              </>
+            )}
           </div>
         )}
       </aside>

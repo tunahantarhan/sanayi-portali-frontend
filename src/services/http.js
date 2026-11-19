@@ -24,6 +24,9 @@ const DEV_LIVE_ENDPOINTS = new Set(
 // Verilen uç için mock mu kullanılacak?
 export const isMockFor = (endpoint) => USE_MOCK && !DEV_LIVE_ENDPOINTS.has(endpoint);
 
+// Yalnızca geliştirmede: bazı uçlar gerçek ERP'den geliyorsa true.
+export const HAS_DEV_LIVE = USE_MOCK && DEV_LIVE_ENDPOINTS.size > 0;
+
 export const http = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // Oturum HttpOnly cookie ile taşınır

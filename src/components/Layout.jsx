@@ -24,6 +24,7 @@ import { getNotifications, markAllNotificationsAsRead } from '../services/api';
 import { USE_MOCK, HAS_DEV_LIVE } from '../services/http';
 import { formatRelative } from '../utils/format';
 import { LoadingState } from './ui/PageState';
+import QuickSearch from './QuickSearch';
 
 const firmaLogo = tenantConfig.logo;
 
@@ -309,15 +310,11 @@ export default function Layout() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div className="flex flex-1 items-center rounded-xl bg-gray-50 px-3 py-2 border border-gray-300 focus-within:border-brand focus-within:bg-white transition-all">
-              <Search className="h-4 w-4 text-gray-500 shrink-0" />
-              <input 
-                ref={mobileSearchInputRef}
-                type="text" 
-                placeholder="Fatura, duyuru veya işlem ara..." 
-                className="ml-2 w-full bg-transparent text-sm text-gray-800 outline-none placeholder-gray-500 font-medium"
-              />
-            </div>
+            <QuickSearch
+              ref={mobileSearchInputRef}
+              onNavigate={() => setIsMobileSearchOpen(false)}
+              className="flex-1 rounded-xl bg-gray-50 px-3 py-2 border border-gray-300 focus-within:border-brand focus-within:bg-white transition-all"
+            />
             <button 
               onClick={() => setIsMobileSearchOpen(false)}
               className="rounded-full p-2 text-gray-400 hover:text-gray-600 transition-colors"
@@ -416,14 +413,7 @@ export default function Layout() {
         {/* ÜST BAR (Masaüstü) */}
         <header className="hidden lg:flex relative z-30 h-16 shrink-0 items-center justify-between border-b bg-white px-4 md:px-8">
           
-          <div className="flex w-full max-w-lg items-center rounded-xl border border-gray-300 bg-gray-50/90 px-4 py-2.5 transition-all duration-200 focus-within:border-brand focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/15 shadow-sm">
-            <Search className="h-4.5 w-4.5 text-gray-500 shrink-0" />
-            <input 
-              type="text" 
-              placeholder="Fatura No, işlem veya duyuru arayın..." 
-              className="ml-3 w-full bg-transparent text-sm text-gray-800 placeholder-gray-500 font-medium outline-none"
-            />
-          </div>
+          <QuickSearch className="w-full max-w-lg rounded-xl border border-gray-300 bg-gray-50/90 px-4 py-2.5 transition-all duration-200 focus-within:border-brand focus-within:bg-white focus-within:ring-2 focus-within:ring-brand/15 shadow-sm" />
 
           <div className="flex items-center space-x-5">
             

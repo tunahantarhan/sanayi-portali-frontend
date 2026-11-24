@@ -43,14 +43,63 @@ export const tenantConfig = {
   otpStepsSec: [60, 180, 300],
 
   // Yan menü. `to` iç sayfa, `href` dış bağlantıdır. `icon` değerleri Layout.jsx'teki ikon listesindedir.
+  // `keywords`: üst bardaki aramada sayfayı bulduran ek kelimeler.
   menu: [
-    { to: '/panel', label: 'Ana Sayfa', icon: 'home', end: true },
-    { to: '/panel/faturalar', label: 'Faturalar', icon: 'invoice' },
-    { to: '/panel/kavaleto', label: 'Kavaleto İşlemleri', icon: 'truck' },
-    { to: '/panel/basvurular', label: 'OSB Başvuru', icon: 'send' },
-    { to: '/panel/bilgilendirmeler', label: 'Bilgilendirmeler', icon: 'mail' },
-    { to: '/panel/firmam', label: 'Firmam', icon: 'building' },
-    { href: 'https://ideriosb.org.tr', label: 'Aranan Eleman', icon: 'briefcase' },
+    {
+      to: '/panel',
+      label: 'Ana Sayfa',
+      icon: 'home',
+      end: true,
+      keywords: ['duyuru', 'tüketim', 'grafik', 'uyarı'],
+    },
+    {
+      to: '/panel/faturalar',
+      label: 'Faturalar',
+      icon: 'invoice',
+      keywords: ['elektrik', 'doğalgaz', 'su', 'atık su', 'yönetim gideri', 'çöp', 'ödeme', 'vade'],
+    },
+    {
+      to: '/panel/kavaleto',
+      label: 'Kavaleto İşlemleri',
+      icon: 'truck',
+      keywords: ['araç', 'nakliye'],
+    },
+    {
+      to: '/panel/basvurular',
+      label: 'OSB Başvuru',
+      icon: 'send',
+      keywords: ['başvuru', 'evrak', 'talep', 'dilekçe', 'takip'],
+    },
+    {
+      to: '/panel/bilgilendirmeler',
+      label: 'Bilgilendirmeler',
+      icon: 'mail',
+      keywords: ['kep', 'sms', 'e-posta', 'mesaj', 'tebligat'],
+    },
+    {
+      to: '/panel/firmam',
+      label: 'Firmam',
+      icon: 'building',
+      keywords: [
+        'firma',
+        'teminat',
+        'dbs',
+        'borç',
+        'kanal bağlantı izni',
+        'işgaliye',
+        'parsel',
+        'tesisat',
+        'nace',
+        'yetkili',
+        'iletişim',
+      ],
+    },
+    {
+      href: 'https://ideriosb.org.tr',
+      label: 'Aranan Eleman',
+      icon: 'briefcase',
+      keywords: ['iş ilanı', 'personel', 'kariyer'],
+    },
   ],
 
   // Fatura grupları (sekmeler). `tipler`, Logo dosya adındaki fatura tipi kodlarıdır.

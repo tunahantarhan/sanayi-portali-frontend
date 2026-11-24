@@ -389,6 +389,174 @@ const rawRoutes = {
   'eksik-dbs-dosya': sourceFileRaw('dbs'),
 };
 
+// ---- Servis durumu: /__erp/durum ----
+// Bilinen GET servislerini sırayla dener: HTTP durumu, kayıt sayısı, eşlemenin beklediği alanlar
+// ve ilk dosyanın indirilip indirilemediği. Oturum açıksa her servis giriş token'ıyla da denenir
+// (ERP token'ı kabul etmeye başladı mı, görmek için). Yalnızca durum ve alan adlarını döner.
+
+// Eşlemelerin ERP kaydında okuduğu alanlar. Eksik alan, ekranda boş kalan bilgi demektir.
+const EXPECTED_FIELDS = {
+  'evrak-tipler': ['id', 'isim', 'aciklama'],
+  detay: [
+    'isim',
+    'adres',
+    'k_isimsoyisim',
+    'k_tel',
+    'k_email',
+    'nace_kodu',
+    'parseller',
+    'tesisatlar',
+  ],
+  isg: [
+    'id',
+    'durum_text',
+    'turu_text',
+    'parsel_adi',
+    'miktar',
+    'birim',
+    'baslangic_t',
+    'bitis_t',
+    'gun',
+    'fatura_tutar',
+    'fatura_no',
+    'fatura_t',
+    'dosyalar',
+  ],
+  et: ['id', 'teminat_talep', 'teminat', 'teminat_eksik', 'evrak_sayi', 'dosyalar'],
+  borc: ['id', 'bakiye', 'evrak_sayi', 'dosyalar'],
+  dbs: ['id', 'dbs', 'evrak_sayi', 'dosyalar'],
+};
+
+const SOURCE_NAMES = {
+  isg: 'isgaliye',
+  et: 'eksik-teminat',
+  borc: 'gecmis-borc',
+  dbs: 'eksik-dbs',
+};
+
+const MAPPERS = {
+  'evrak-tipler': (body) => mapApplicationTypes(body),
+  detay: (body) => mapFirmProfile(body, ''),
+  isg: (body) => (body.data || []).map(mapIsgaliye),
+  et: (body) => mapAlerts({ et: body.data || [] }),
+  borc: (body) => mapAlerts({ borc: body.data || [] }),
+  dbs: (body) => mapAlerts({ dbs: body.data || [] }),
+};
+
+const elapsed = (start) => `${Date.now() - start} ms`;
+
+async function probeFile(ctx, path) {
+  const start = Date.now();
+  try {
+    const r = await fetch(new URL(path, ctx.env.ERP_DEV_URL), {
+      headers: authHeaderOf(ctx) ? { Authorization: authHeaderOf(ctx) } : {},
+      signal: AbortSignal.timeout(30000),
+    });
+    const size = (await r.arrayBuffer()).byteLength;
+    return `${r.status} ${r.headers.get('content-type') || '?'} ${Math.round(size / 1024)} KB (${elapsed(start)})`;
+  } catch (err) {
+    return `hata: ${err.name === 'TimeoutError' ? 'zaman aşımı' : err.cause?.code || err.message}`;
+  }
+}
+
+async function probeService(ctx, key, path, tokenCtx) {
+  const sonuc = { yol: path };
+  const start = Date.now();
+  try {
+    const { status, body } = await callErp(ctx, path);
+    sonuc.http = `${status} (${elapsed(start)})`;
+    if (status >= 400) {
+      sonuc.durum = 'HATA';
+      sonuc.mesaj = String(body?.message || body?.error || body?.yanitMetni || '').slice(0, 200);
+      return sonuc;
+    }
+    const list = Array.isArray(body?.data) ? body.data : [];
+    sonuc.kayit = list.length;
+    const first = list[0];
+    if (!first) {
+      sonuc.durum = 'KAYIT YOK';
+      sonuc.not = 'Alanlar kontrol edilemedi; kaydı olan bir test id ile deneyin.';
+    } else {
+      const eksik = EXPECTED_FIELDS[key].filter((f) => !(f in first));
+      const fazla = Object.keys(first).filter((f) => !EXPECTED_FIELDS[key].includes(f));
+      sonuc.eksikAlanlar = eksik;
+      sonuc.kullanilmayanAlanlar = fazla;
+      try {
+        MAPPERS[key](body);
+        sonuc.durum = eksik.length ? 'UYUMSUZ ALAN' : 'OK';
+      } catch (err) {
+        sonuc.durum = 'EŞLEME HATASI';
+        sonuc.mesaj = err.message;
+      }
+      // İlk bulunan dosyayı dene (yalnızca uyarı/işgaliye kaynakları).
+      if (ALERT_SOURCES[key]) {
+        const kayit = list.find((k) => (k.dosyalar || []).some((d) => !d.bulunamadi));
+        const dosya = kayit?.dosyalar.find((d) => !d.bulunamadi);
+        if (dosya) {
+          const n = dosya[ALERT_FILE_KEYS[key]];
+          sonuc.dosya = {
+            yol: ALERT_SOURCES[key].file(kayit.id, n),
+            sonuc: await probeFile(ctx, ALERT_SOURCES[key].file(kayit.id, n)),
+          };
+        } else {
+          sonuc.dosya = 'Bulunabilir dosyası olan kayıt yok';
+        }
+      }
+    }
+  } catch (err) {
+    sonuc.durum = 'ULAŞILAMADI';
+    sonuc.mesaj = err.name === 'TimeoutError' ? 'zaman aşımı' : err.cause?.code || err.message;
+  }
+  if (tokenCtx) {
+    const r = await callErp(tokenCtx, path).catch(() => ({ status: 'hata' }));
+    sonuc.tokenIle = String(r.status);
+  }
+  return sonuc;
+}
+
+async function runStatusCheck(ctx, firm, session) {
+  const tokenCtx = session?.token ? { ...ctx, authHeader: `Bearer ${session.token}` } : null;
+  const services = [['evrak-tipler', 'evrak-tipler', '/api/v1/evrak-tipler']];
+  if (firm?.vergiNo) {
+    services.push(['detay', 'detay', `/api/v1/sanayici-panel/sanayici/${firm.vergiNo}/detay`]);
+  }
+  for (const source of Object.keys(SOURCE_NAMES)) {
+    const id = firmaIdFor(ctx, firm, source);
+    if (id)
+      services.push([source, `${SOURCE_NAMES[source]} (${id})`, ALERT_SOURCES[source].list(id)]);
+  }
+
+  const servisler = {};
+  for (const [key, name, path] of services) {
+    servisler[name] = await probeService(ctx, key, path, tokenCtx);
+  }
+
+  const ozet = Object.entries(servisler).map(([name, s]) => {
+    const parts = [s.durum, s.http];
+    if (s.kayit != null) parts.push(`${s.kayit} kayıt`);
+    if (s.eksikAlanlar?.length) parts.push(`eksik alan: ${s.eksikAlanlar.join(', ')}`);
+    if (s.dosya?.sonuc) parts.push(`dosya: ${s.dosya.sonuc}`);
+    if (s.tokenIle) parts.push(`token ile: ${s.tokenIle}`);
+    if (s.mesaj) parts.push(s.mesaj);
+    return `${name}: ${parts.filter(Boolean).join(' · ')}`;
+  });
+
+  return {
+    erp: ctx.env.ERP_DEV_URL,
+    tarih: new Date().toISOString(),
+    giris: session?.token
+      ? `OK (portal-auth, firma_id ${session.firmaId ?? '?'})`
+      : 'denenmedi: gerçek girişle oturum açılmamış',
+    ozet,
+    denenmeyenler: [
+      'evrak-dosya: başvuru listesi servisi olmadığı için evrak/detay id bilinmiyor',
+      'evrak (POST): kayıt oluşturduğu için otomatik denenmez',
+      'Logo fatura servisleri: ayrı sunucu, ara katmana bağlı değil',
+    ],
+    servisler,
+  };
+}
+
 // ---- Plugin ----
 
 export function erpDevProxy(env) {
@@ -468,12 +636,16 @@ export function erpDevProxy(env) {
             ctx = { ...ctx, authHeader: `Bearer ${session.token}` };
           }
 
+          if (pathname.replace(/\/$/, '') === '/__erp/durum') {
+            return sendJson(res, 200, await runStatusCheck(ctx, firm, session));
+          }
+
           if (isRaw) {
             const name = pathname.replace(/^\/__erp\/?/, '');
             if (!name) {
               return sendJson(res, 200, {
                 firma: firm ? { vergiNo: firm.vergiNo, firmaId: firm.firmaId || null } : null,
-                uclar: Object.keys(rawRoutes).map((n) => `/__erp/${n}`),
+                uclar: ['durum', 'tani', ...Object.keys(rawRoutes)].map((n) => `/__erp/${n}`),
               });
             }
             const [routeName, ...args] = name.split('/').filter(Boolean);

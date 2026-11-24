@@ -12,6 +12,14 @@
 
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
+import {
+  ALERT_FILE_KEYS,
+  alertFileIdPattern,
+  mapAlerts,
+  mapApplicationTypes,
+  mapFirmProfile,
+  mapIsgaliye,
+} from '../src/services/erpMappers.js';
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const COOKIE = 'portal_dev_sid';
@@ -126,122 +134,34 @@ async function getErpJson(ctx, path) {
   return body;
 }
 
-// ---- Uyarılar: işgaliye + eksik teminat ----
-// Dosya kimliği "<kaynak>-<kayıtId>-<index|slot>" biçimindedir, ör. isg-507-0, et-22-0.
+// ---- Uyarılar ve işgaliye ----
+// ERP yanıtlarının sözleşmeye çevrilmesi src/services/erpMappers.js içindedir.
 
 const ALERT_SOURCES = {
   isg: {
     list: (firmaId) => `/api/v1/isgaliye/${firmaId}`,
     file: (id, n) => `/api/v1/isgaliye-dosya/${id}/${n}`,
-    fileKey: 'index',
   },
   et: {
     list: (firmaId) => `/api/v1/eksik-teminat/${firmaId}`,
     file: (id, n) => `/api/v1/eksik-teminat-dosya/${id}/${n}`,
-    fileKey: 'slot',
   },
   // Geçmiş borçta tek dosya var, dosya yalnızca kayıt id'siyle alınır (Saed Bey, 31 Ekim).
   borc: {
     list: (firmaId) => `/api/v1/gecmis-borc/${firmaId}`,
     file: (id) => `/api/v1/gecmis-borc-dosya/${id}`,
-    fileKey: 'slot',
   },
   dbs: {
     list: (firmaId) => `/api/v1/eksik-dbs/${firmaId}`,
     file: (id, n) => `/api/v1/eksik-dbs-dosya/${id}/${n}`,
-    fileKey: 'slot',
   },
 };
-
-const toFiles = (source, kayit) =>
-  (kayit.dosyalar || [])
-    .filter((d) => !d.bulunamadi)
-    .map((d) => ({ id: `${source}-${kayit.id}-${d[ALERT_SOURCES[source].fileKey]}`, ad: d.adi }));
-
-const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
-
-// İşgaliye: firmanın tüm kayıtları (faturalanan/onaylanan) Firmam'da liste olarak gösterilir.
-// Durum ERP'den metin olarak geliyor ("FATURALANDI"); sözleşmede küçük harf ASCII anahtara çevrilir.
-const statusKey = (text) =>
-  (text || '')
-    .toLocaleLowerCase('tr')
-    .replace(/ı/g, 'i')
-    .replace(/ş/g, 's')
-    .replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u')
-    .replace(/ö/g, 'o')
-    .replace(/ç/g, 'c')
-    .replace(/\s+/g, '_');
-
-const titleTr = (text) =>
-  (text || '').toLocaleLowerCase('tr').replace(/^\p{L}/u, (c) => c.toLocaleUpperCase('tr'));
-
-const mapIsgaliye = (k) => ({
-  id: k.id,
-  durum: statusKey(k.durum_text),
-  durumText: titleTr(k.durum_text),
-  tur: k.turu_text || null,
-  parsel: k.parsel_adi || null,
-  miktar: num(k.miktar),
-  birim: k.birim || null,
-  baslangic: k.baslangic_t || null,
-  bitis: k.bitis_t || null,
-  gun: num(k.gun),
-  tutar: num(k.fatura_tutar),
-  faturaNo: k.fatura_no || null,
-  faturaTarihi: k.fatura_t || null,
-  aciklama: k.aciklama || '',
-  dosyalar: (k.dosyalar || [])
-    .filter((d) => !d.bulunamadi)
-    .map((d) => ({ id: String(d.index), ad: d.adi, boyut: num(d.boyut) })),
-});
 
 async function loadIsgaliye(ctx, firm) {
   const id = firmaIdFor(ctx, firm, 'isg');
   const list = id ? (await getErpJson(ctx, ALERT_SOURCES.isg.list(id))).data || [] : [];
   return { data: list.map(mapIsgaliye) };
 }
-
-const yaziSayisi = (k) => (k.evrak_sayi ? ` Yazı sayısı: ${k.evrak_sayi}.` : '');
-
-// Eksik teminat: ERP eksik tutarı hazır veriyor (teminat_eksik); yoksa istenen - mevcut.
-const mapEksikTeminat = (k) => {
-  const talep = num(k.teminat_talep);
-  const mevcut = num(k.teminat);
-  const eksik = num(k.teminat_eksik) ?? (talep != null && mevcut != null ? talep - mevcut : null);
-  return {
-    id: `et-${k.id}`,
-    tur: 'eksik_teminat',
-    baslik: 'Eksik teminat',
-    aciklama: `Teminatınızın tamamlanması gerekmektedir.${yaziSayisi(k)}`,
-    tutar: eksik != null ? Math.max(eksik, 0) : null,
-    sonTarih: null,
-    dosyalar: toFiles('et', k),
-  };
-};
-
-// Vadesi geçmiş borç: tutar ERP'nin vadesi geçmiş bakiyesi (bakiye = finans.vadesi_gecmis).
-const mapGecmisBorc = (k) => ({
-  id: `borc-${k.id}`,
-  tur: 'vadesi_gecmis_borc',
-  baslik: 'Vadesi geçmiş borç',
-  aciklama: `Vadesi geçmiş ödenmemiş borcunuz bulunmaktadır.${yaziSayisi(k)}`,
-  tutar: num(k.bakiye) ?? num(k.finans?.vadesi_gecmis),
-  sonTarih: null,
-  dosyalar: toFiles('borc', k),
-});
-
-// Eksik DBS: tutar, yazıdaki "Eksik Kalan (istenen) Teminat Tutarı" ile aynı olan yuvarlanmış
-// dbs.eksik_kalan_erp (31 Ekim görselinde 116.000 TL). Yoksa yuvarlanmamış değerler kullanılır.
-const mapEksikDbs = (k) => ({
-  id: `dbs-${k.id}`,
-  tur: 'eksik_dbs',
-  baslik: 'Eksik DBS',
-  aciklama: `DBS teminatınızın tamamlanması gerekmektedir.${yaziSayisi(k)}`,
-  tutar: num(k.dbs?.eksik_kalan_erp) ?? num(k.dbs?.eksik_kalan) ?? num(k.teminat_eksik_kolon),
-  sonTarih: null,
-  dosyalar: toFiles('dbs', k),
-});
 
 // Yalnızca deneme için: ERP_DEV_TEST_FIRMA="isg=1078,et=2900" ile her kaynak ayrı bir test
 // firmasından okunabilir (Saed Bey'in verdiği test id'leri). Tanımlı değilse oturumdaki firma kullanılır.
@@ -263,14 +183,12 @@ async function loadAlerts(ctx, firm) {
     return id ? (await getErpJson(ctx, ALERT_SOURCES[source].list(id))).data || [] : [];
   };
   const [borc, et, dbs] = await Promise.all([listOf('borc'), listOf('et'), listOf('dbs')]);
-  return {
-    data: [...borc.map(mapGecmisBorc), ...et.map(mapEksikTeminat), ...dbs.map(mapEksikDbs)],
-  };
+  return mapAlerts({ borc, et, dbs });
 }
 
 // Dosya, yalnızca oturumdaki firmanın kaydına aitse indirilir (gerçek backend'de de böyle olmalı).
 async function sendAlertFile(ctx, firm, fileId, res) {
-  const m = /^(isg|et|borc|dbs)-(\d+)-(\d+)$/.exec(fileId);
+  const m = alertFileIdPattern.exec(fileId);
   if (!m) return sendError(res, 404, 'NOT_FOUND', 'Dosya bulunamadı.');
   const [, source, kayitId, n] = m;
   const src = ALERT_SOURCES[source];
@@ -278,7 +196,9 @@ async function sendAlertFile(ctx, firm, fileId, res) {
   if (!firmaId) return sendError(res, 404, 'NOT_FOUND', 'Dosya bulunamadı.');
   const list = await getErpJson(ctx, src.list(firmaId));
   const kayit = (list.data || []).find((k) => String(k.id) === kayitId);
-  const exists = kayit?.dosyalar?.some((d) => String(d[src.fileKey]) === n && !d.bulunamadi);
+  const exists = kayit?.dosyalar?.some(
+    (d) => String(d[ALERT_FILE_KEYS[source]]) === n && !d.bulunamadi
+  );
   if (!exists) return sendError(res, 404, 'NOT_FOUND', 'Dosya bulunamadı.');
   return pipeErpFile(ctx, src.file(kayitId, n), res);
 }
@@ -421,15 +341,7 @@ const dataRoutes = {
   // -> { data: [{ id, ad, aciklama, sik }] }
   '/api/applications/types': {
     erpPath: () => '/api/v1/evrak-tipler',
-    map: (erp) => ({
-      // ERP sık kullanılanları işaretlemiyor; sik=false iken ekran ilk N türü öne çıkarır.
-      data: (erp.data || []).map((t) => ({
-        id: t.id,
-        ad: t.isim,
-        aciklama: t.aciklama || '',
-        sik: false,
-      })),
-    }),
+    map: mapApplicationTypes,
   },
 
   // -> { data: [{ id, tur, baslik, aciklama, tutar, sonTarih, dosyalar: [{ id, ad }] }] }
@@ -446,35 +358,10 @@ const dataRoutes = {
   },
 
   // -> { unvan, vergiNo, nace, yetkili, yerler }
-  // ERP detay servisi bir vergi no için birden fazla kayıt dönebiliyor; her biri "yerler" altında.
-  // Teminat ve kanal izni bu serviste yok, alan gönderilmez (ekran ilgili kartları gizler).
   '/api/firm/profile': {
     needsFirm: true,
     erpPath: (firm) => `/api/v1/sanayici-panel/sanayici/${firm.vergiNo}/detay`,
-    map: (erp, firm) => {
-      const kayitlar = erp.data || [];
-      const ilk = kayitlar[0] || {};
-      const yetkili =
-        ilk.k_isimsoyisim || ilk.k_tel || ilk.k_email
-          ? {
-              adSoyad: ilk.k_isimsoyisim || null,
-              telefon: ilk.k_tel || null,
-              eposta: ilk.k_email || null,
-            }
-          : null;
-      return {
-        unvan: ilk.isim || '',
-        vergiNo: firm.vergiNo,
-        nace: ilk.nace_kodu ? { kod: ilk.nace_kodu.kodu, aciklama: ilk.nace_kodu.aciklama } : null,
-        yetkili,
-        yerler: kayitlar.map((k) => ({
-          unvan: k.isim,
-          adres: k.adres || null,
-          parseller: (k.parseller || []).map((p) => p.isim),
-          tesisatlar: (k.tesisatlar || []).map((t) => t.isim),
-        })),
-      };
-    },
+    map: (erp, firm) => mapFirmProfile(erp, firm.vergiNo),
   },
 };
 

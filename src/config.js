@@ -123,7 +123,7 @@ export const tenantConfig = {
   // Başvuru ekranında öne çıkarılacak tür sayısı (kalanlar accordion içinde)
   popularApplicationTypeCount: 4,
 
-  // Alt bilgi bağlantıları
+  // Alt bilgi bağlantıları. `href` boş olanlar gösterilmez (metin adresi gelince doldurulacak).
   footerLinks: [
     { label: 'KVKK Aydınlatma Metni', href: null },
     { label: 'Gizlilik Politikası', href: null },

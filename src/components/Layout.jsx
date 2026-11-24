@@ -550,15 +550,11 @@ export default function Layout() {
           <footer className="mt-12 border-t border-gray-200/70 pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
             <p>© {new Date().getFullYear()} {tenantConfig.fullName}. Tüm hakları saklıdır.</p>
             <div className="flex items-center space-x-4">
-              {tenantConfig.footerLinks.map((link) => (
+              {tenantConfig.footerLinks.filter((link) => link.href).map((link) => (
                 <span key={link.label} className="flex items-center space-x-4">
-                  {link.href ? (
-                    <a href={link.href} target="_blank" rel="noreferrer" className="hover:text-gray-600 transition-colors">
-                      {link.label}
-                    </a>
-                  ) : (
-                    <span>{link.label}</span>
-                  )}
+                  <a href={link.href} target="_blank" rel="noreferrer" className="hover:text-gray-600 transition-colors">
+                    {link.label}
+                  </a>
                   <span>•</span>
                 </span>
               ))}

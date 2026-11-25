@@ -84,24 +84,51 @@ export const mockDashboard = {
 };
 
 // Vadesi geçmiş borç, eksik teminat ve eksik DBS. Yoksa boş dizi gelir ve ekranda hiç görünmez.
+// tarih, cariKod, parsel, yaziSayisi ve türe özel tutarlar yalnızca Hesap Durumu tablolarında kullanılır.
 export const mockAlerts = [
   {
-    id: 'vgb-1',
+    id: 'borc-1',
     tur: 'vadesi_gecmis_borc',
     baslik: 'Vadesi geçmiş borç',
-    aciklama: 'Ödenmemiş yönetim gideri faturanız bulunmaktadır.',
+    aciklama: 'Vadesi geçmiş ödenmemiş borcunuz bulunmaktadır.',
     tutar: 2150,
-    sonTarih: day(-12),
-    dosyalar: [{ id: 'vgb-1', ad: 'borc-bildirimi.pdf' }],
+    sonTarih: null,
+    tarih: day(-12),
+    cariKod: 'O.DEMO.1.1001',
+    parsel: 'A-1',
+    yaziSayisi: 'DEMO-2026-101',
+    bakiye: 3400,
+    vadesiGelmemis: 1250,
+    dosyalar: [{ id: 'borc-1-0', ad: 'borc-bildirimi.pdf' }],
   },
   {
     id: 'et-1',
     tur: 'eksik_teminat',
     baslik: 'Eksik teminat',
-    aciklama: 'Tüketim artışı nedeniyle elektrik teminatınızın tamamlanması gerekmektedir.',
+    aciklama: 'Teminatınızın tamamlanması gerekmektedir.',
     tutar: 150000,
-    sonTarih: day(18),
-    dosyalar: [{ id: 'et-1-1', ad: 'teminat-yazisi.pdf' }],
+    sonTarih: null,
+    tarih: day(-5),
+    cariKod: 'O.DEMO.1.1001',
+    parsel: 'A-1',
+    yaziSayisi: null,
+    istenen: 400000,
+    mevcut: 250000,
+    dosyalar: [{ id: 'et-1-0', ad: 'teminat-yazisi.pdf' }],
+  },
+  {
+    id: 'dbs-1',
+    tur: 'eksik_dbs',
+    baslik: 'Eksik DBS',
+    aciklama: 'DBS teminatınızın tamamlanması gerekmektedir.',
+    tutar: 40000,
+    sonTarih: null,
+    tarih: day(-3),
+    cariKod: 'O.DEMO.1.1001',
+    parsel: 'A-1',
+    yaziSayisi: null,
+    dbsLimiti: 60000,
+    dosyalar: [],
   },
 ];
 

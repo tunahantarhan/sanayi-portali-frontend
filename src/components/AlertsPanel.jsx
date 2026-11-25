@@ -1,4 +1,5 @@
-import { AlertOctagon, Banknote, ShieldAlert, FileWarning } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertOctagon, Banknote, ShieldAlert, FileWarning, ChevronRight } from 'lucide-react';
 import FileLink from './ui/FileLink';
 import { fileUrls } from '../services/api';
 import { ALERT_TYPE_LABELS } from '../utils/warnings';
@@ -12,6 +13,7 @@ const ICONS = {
 
 // Vadesi geçmiş borç, eksik teminat ve eksik DBS uyarıları.
 // Uyarı yoksa hiçbir şey çizmez (Ahmet Bey'in isteği: yoksa hiç görünmesin).
+// Ayrıntılar Hesap Durumu sayfasında, uyarının türüne ait sekmede tablo olarak gösterilir.
 export default function AlertsPanel({ alerts, className = '' }) {
   if (!alerts || alerts.length === 0) return null;
 
@@ -47,10 +49,17 @@ export default function AlertsPanel({ alerts, className = '' }) {
               <div className='mt-3 flex flex-wrap items-center justify-between gap-2 pl-12 text-xs'>
                 {alert.sonTarih && (
                   <span className='text-gray-500'>
-                    Son tarih: <strong className='text-gray-700'>{formatDate(alert.sonTarih)}</strong>
+                    Son tarih:{' '}
+                    <strong className='text-gray-700'>{formatDate(alert.sonTarih)}</strong>
                   </span>
                 )}
-                <div className='flex flex-wrap gap-3'>
+                <div className='flex flex-wrap items-center gap-3'>
+                  <Link
+                    to={`/panel/hesap-durumu?sekme=${alert.tur}`}
+                    className='inline-flex items-center font-semibold text-red-700 hover:underline'
+                  >
+                    Detaylar <ChevronRight className='h-3.5 w-3.5' />
+                  </Link>
                   {(alert.dosyalar || []).map((f) => (
                     <FileLink
                       key={f.id}

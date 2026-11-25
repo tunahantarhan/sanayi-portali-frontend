@@ -13,6 +13,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
 // Panel sayfaları ayrı paketlere bölünür; giriş ekranı grafik kütüphanesini yüklemez.
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Faturalar = lazy(() => import('./pages/Faturalar'));
+const HesapDurumu = lazy(() => import('./pages/HesapDurumu'));
 const Basvurular = lazy(() => import('./pages/Basvurular'));
 const Kavaleto = lazy(() => import('./pages/Kavaleto'));
 const Firmam = lazy(() => import('./pages/Firmam'));
@@ -35,6 +36,7 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path='faturalar' element={<Faturalar />} />
+            <Route path='hesap-durumu' element={<HesapDurumu />} />
             <Route path='basvurular' element={<Basvurular />} />
             <Route path='kavaleto' element={<Kavaleto />} />
             <Route path='bilgilendirmeler' element={<Bilgilendirmeler />} />

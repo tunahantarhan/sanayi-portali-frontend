@@ -420,11 +420,22 @@ const EXPECTED_FIELDS = {
     'fatura_tutar',
     'fatura_no',
     'fatura_t',
+    'aciklama',
     'dosyalar',
   ],
-  et: ['id', 'teminat_talep', 'teminat', 'teminat_eksik', 'evrak_sayi', 'dosyalar'],
-  borc: ['id', 'bakiye', 'evrak_sayi', 'dosyalar'],
-  dbs: ['id', 'dbs', 'evrak_sayi', 'dosyalar'],
+  et: [
+    'id',
+    'tarih',
+    'cari_no',
+    'veri',
+    'teminat_talep',
+    'teminat',
+    'teminat_eksik',
+    'evrak_sayi',
+    'dosyalar',
+  ],
+  borc: ['id', 'tarih', 'cari_no', 'veri', 'bakiye', 'finans', 'evrak_sayi', 'dosyalar'],
+  dbs: ['id', 'tarih', 'cari_no', 'veri', 'dbs', 'evrak_sayi', 'dosyalar'],
 };
 
 const SOURCE_NAMES = {

@@ -17,6 +17,7 @@ import {
   ExternalLink,
   CheckCheck,
   ArrowLeft,
+  Wallet,
 } from 'lucide-react';
 import { tenantConfig } from '../config';
 import { useAuth } from '../auth/AuthContext';
@@ -37,6 +38,7 @@ const MENU_ICONS = {
   mail: Mail,
   building: Building2,
   briefcase: Briefcase,
+  wallet: Wallet,
 };
 
 const navClass = ({ isActive }) =>

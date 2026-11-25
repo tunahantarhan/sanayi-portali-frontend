@@ -20,7 +20,7 @@ export default function SortableTh({ k, sortConfig, onSort, align = 'left', chil
     <th
       scope='col'
       onClick={() => onSort(k)}
-      className={`group cursor-pointer px-6 py-4 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100/60 ${right ? 'text-right' : 'text-left'}`}
+      className={`group cursor-pointer whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100/60 ${right ? 'text-right' : 'text-left'}`}
     >
       <div className={`flex items-center gap-2 ${right ? 'justify-end' : ''}`}>
         {children}

@@ -103,6 +103,15 @@ export const mapIsgaliye = (k) => ({
 
 const yaziSayisi = (k) => (k.evrak_sayi ? ` Yazı sayısı: ${k.evrak_sayi}.` : '');
 
+// Üç uyarı kaynağında ortak alanlar: kayıt (yazı) tarihi, cari hesap, parsel ve yazı sayısı.
+// Hesap Durumu tablolarında gösterilir; ana sayfadaki uyarı kartı yalnızca tutar ve dosyayı kullanır.
+const alertCommon = (k) => ({
+  tarih: k.tarih || null,
+  cariKod: k.cari_no || k.veri?.CARIKOD || null,
+  parsel: k.veri?.PARSEL || null,
+  yaziSayisi: k.evrak_sayi || null,
+});
+
 // Eksik teminat: ERP eksik tutarı hazır veriyor (teminat_eksik); yoksa istenen - mevcut.
 export const mapEksikTeminat = (k) => {
   const talep = num(k.teminat_talep);
@@ -115,6 +124,9 @@ export const mapEksikTeminat = (k) => {
     aciklama: `Teminatınızın tamamlanması gerekmektedir.${yaziSayisi(k)}`,
     tutar: eksik != null ? Math.max(eksik, 0) : null,
     sonTarih: null,
+    ...alertCommon(k),
+    istenen: talep,
+    mevcut,
     dosyalar: toFiles('et', k),
   };
 };
@@ -127,6 +139,9 @@ export const mapGecmisBorc = (k) => ({
   aciklama: `Vadesi geçmiş ödenmemiş borcunuz bulunmaktadır.${yaziSayisi(k)}`,
   tutar: num(k.bakiye) ?? num(k.finans?.vadesi_gecmis),
   sonTarih: null,
+  ...alertCommon(k),
+  bakiye: num(k.finans?.bakiye),
+  vadesiGelmemis: num(k.finans?.vadesi_gelmemis),
   dosyalar: toFiles('borc', k),
 });
 
@@ -139,6 +154,8 @@ export const mapEksikDbs = (k) => ({
   aciklama: `DBS teminatınızın tamamlanması gerekmektedir.${yaziSayisi(k)}`,
   tutar: num(k.dbs?.eksik_kalan_erp) ?? num(k.dbs?.eksik_kalan) ?? num(k.teminat_eksik_kolon),
   sonTarih: null,
+  ...alertCommon(k),
+  dbsLimiti: num(k.dbs?.dbs_limit),
   dosyalar: toFiles('dbs', k),
 });
 

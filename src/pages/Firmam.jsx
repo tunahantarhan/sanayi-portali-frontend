@@ -11,10 +11,9 @@ import {
   Gauge,
 } from 'lucide-react';
 import { tenantConfig } from '../config';
-import { getFirmProfile, getAlerts, getIsgaliye } from '../services/api';
+import { getFirmProfile, getAlerts } from '../services/api';
 import useApi from '../hooks/useApi';
 import AlertsPanel from '../components/AlertsPanel';
-import IsgaliyeList from '../components/IsgaliyeList';
 import { LoadingState, ErrorState } from '../components/ui/PageState';
 import { TEMINAT_TYPE_LABELS } from '../utils/warnings';
 import { daysUntil, formatCurrency, formatDate, formatDaysLeft } from '../utils/format';
@@ -35,8 +34,6 @@ const expiryTone = (days, threshold) => {
 export default function Firmam() {
   const profile = useApi(getFirmProfile);
   const alerts = useApi(getAlerts);
-  // İşgaliye ayrı yüklenir; servis hata verirse yalnızca bu kart gösterilmez.
-  const isgaliye = useApi(getIsgaliye);
   const { contact, warningThresholdDays } = tenantConfig;
 
   if (profile.loading) return <LoadingState text='Firma bilgileri yükleniyor...' />;
@@ -159,8 +156,6 @@ export default function Firmam() {
           </div>
         </div>
       )}
-
-      <IsgaliyeList items={isgaliye.data} />
 
       {(hasTeminat || hasKanal) && (
         <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>

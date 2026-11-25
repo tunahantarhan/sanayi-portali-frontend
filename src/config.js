@@ -59,6 +59,21 @@ export const tenantConfig = {
       keywords: ['elektrik', 'doğalgaz', 'su', 'atık su', 'yönetim gideri', 'çöp', 'ödeme', 'vade'],
     },
     {
+      to: '/panel/hesap-durumu',
+      label: 'Hesap Durumu',
+      icon: 'wallet',
+      keywords: [
+        'işgaliye',
+        'borç',
+        'vadesi geçmiş',
+        'teminat',
+        'eksik teminat',
+        'dbs',
+        'cari',
+        'yazı',
+      ],
+    },
+    {
       to: '/panel/kavaleto',
       label: 'Kavaleto İşlemleri',
       icon: 'truck',
@@ -83,10 +98,7 @@ export const tenantConfig = {
       keywords: [
         'firma',
         'teminat',
-        'dbs',
-        'borç',
         'kanal bağlantı izni',
-        'işgaliye',
         'parsel',
         'tesisat',
         'nace',
@@ -122,6 +134,15 @@ export const tenantConfig = {
 
   // Başvuru ekranında öne çıkarılacak tür sayısı (kalanlar accordion içinde)
   popularApplicationTypeCount: 4,
+
+  // Hesap Durumu sekmeleri ve sırası. `isgaliye` dışındakiler /alerts kayıtlarının `tur` değeridir.
+  // Kaydı olmayan sekme gösterilmez; bir müşteride olmayan kaynak listeden çıkarılabilir.
+  accountTabs: [
+    { key: 'isgaliye', label: 'İşgaliye' },
+    { key: 'vadesi_gecmis_borc', label: 'Vadesi Geçmiş Borç' },
+    { key: 'eksik_teminat', label: 'Eksik Teminat' },
+    { key: 'eksik_dbs', label: 'Eksik DBS' },
+  ],
 
   // Alt bilgi bağlantıları. `href` boş olanlar gösterilmez (metin adresi gelince doldurulacak).
   footerLinks: [
